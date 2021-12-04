@@ -1,41 +1,68 @@
 #include <ncurses.h>
 #include <panel.h>
 
-WINDOW *create_newwin(int height, int width, int starty, int startx);
+typedef struct {
+    PANEL *panel;
+    WINDOW *window;
+} CWM_WINDOW;
+
+PANEL *cwm_window_create(int height, int width, int y, int x);
+void cwm_window_print(PANEL *pan, char text[]);
 
 int main() {
     // Init
     initscr();
     cbreak();
     noecho();
+    curs_set(0);
     keypad(stdscr, TRUE);
 
     // ...
     printw("App....");
     refresh();
 
-    // ...
-    int height = 10;
-        int width = 40;
-        int starty = (LINES - height) / 2;  /* Calculating for a center placement */
-        int startx = (COLS - width) / 2;
-    WINDOW *test_win;
-    test_win = create_newwin(height, width, starty, startx);
+    //WINDOW *win = newwin(10,100, 3, 3);
+    //box(win, 0, 0);
+    //PANEL *pan = new_panel(win);
+    //update_panels();
+    //doupdate();
+
+    PANEL *pan = cwm_window_create(10, 100, 3, 3);
+
+    getch();
+
+    //WINDOW *win = panel_window(pan);
+    //wmove(win, 1, 1);
+    //wprintw(win, "Hello World");
+    //wrefresh(win);
+
+    cwm_window_print(pan, "Hello World fdjfJDHFADU HUDHUFDSHUF DSUHFD HUHU HUFUD HUHAUFDSHUHUFDHULAHUHUFDUFHUHUADSUHUFDALHUUDHHUFDLLUHAHUL");
+
+    getch();
+
+    move_panel(pan, 3, 12);
+
+    update_panels();
+    doupdate();
 
     getch();
 
     endwin();
-    return 0;
 }
 
-WINDOW *create_newwin(int height, int width, int starty, int startx)
-{       WINDOW *local_win;
+PANEL *cwm_window_create(int height, int width, int y, int x) {
+    WINDOW *win = newwin(height, width, y, x);
+    box(win, 0, 0);
+    PANEL *pan = new_panel(win);
+    update_panels();
+    doupdate();
 
-        local_win = newwin(height, width, starty, startx);
-        box(local_win, 0 , 0);          /* 0, 0 gives default characters 
-                                         * for the vertical and horizontal
-                                         * lines                        */
-        wrefresh(local_win);            /* Show that box                */
+    return pan;
+}
 
-        return local_win;
+void cwm_window_print(PANEL *pan, char text[]) {
+    WINDOW *win = panel_window(pan);
+    wmove(win, 1, 1);
+    wprintw(win, text);
+    wrefresh(win);
 }
