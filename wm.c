@@ -2,9 +2,8 @@
 #include <panel.h>
 
 typedef struct {
-    PANEL *panel;
-    WINDOW *window;
-} CWM_WINDOW;
+    void *buffer;
+} CWM_WINDOW_DATA;
 
 PANEL *cwm_window_create(int height, int width, int y, int x);
 void cwm_window_print(PANEL *pan, char text[]);

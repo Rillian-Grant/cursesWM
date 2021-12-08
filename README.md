@@ -1,2 +1,3 @@
 # cursesWM
- Ncurses window manager
+
+Ncurses window manager
