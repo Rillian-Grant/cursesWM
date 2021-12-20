@@ -1,67 +1,230 @@
 #include <ncurses.h>
 #include <panel.h>
 
+#include "lib/headers/debug.h"
+
+/**
+ * @brief Contains all window data.
+ */
 typedef struct {
-    void *buffer;
+    PANEL *panel;
+    WINDOW *window; // panel contains window so not needed?
+    char window_buffer[1000];       /**< Primary source for the text the window contains. Wrap around when you reach the end. Size could be hardcoded, or changed on startup with config files. Allocating swap is too much work */
+    int window_buffer_position;     /**< Window buffer position to next write to. Also where to start reading from */
+    int x_pos;
+    int y_pos;
+    int height;
+    int width;
+    char status;
 } CWM_WINDOW_DATA;
 
-PANEL *cwm_window_create(int height, int width, int y, int x);
-void cwm_window_print(PANEL *pan, char text[]);
+CWM_WINDOW_DATA cwm_window_create(int height, int width, int y, int x);
+void cwm_window_move(CWM_WINDOW_DATA *cwm_win, int y, int x);
+void cwm_window_refresh(CWM_WINDOW_DATA *cwm_win);
+void cwm_window_status(CWM_WINDOW_DATA *cwm_win, int status);
 
 int main() {
+    debug_setup();
+    debug_print("Starting...\n");
+
     // Init
     initscr();
     cbreak();
     noecho();
     curs_set(0);
     keypad(stdscr, TRUE);
+    debug_print("Finished setting up ncurses.\n");
+
+    CWM_WINDOW_DATA only_win = cwm_window_create(10, 100, 0, 0);
+
+    cwm_window_refresh(&only_win);
+
+    int key;
+    #define no_mode 0
+    #define edit_mode 1
+    #define move_mode 2
+    #define resize_mode 3
+    int mode = no_mode;
+    while (1) {
+        debug_print("Mode %i\n", mode);
+        debug_print("Waiting for input...\n");
+        key = getch();
+        debug_print("Key with integer representation %i was pressed. Displayed as %c (n.b. This could be wrong)\n", key, key);
+
+        if (mode == no_mode) {
+            debug_print("In no mode\n");
+            switch (key)
+            {
+            case 'e':
+                mode = edit_mode;
+                cwm_window_status(&only_win, 'e');
+                break;
+            case 'm':
+                mode = move_mode;
+                cwm_window_status(&only_win, 'm');
+                break;
+            case 'r':
+                mode = resize_mode;
+                cwm_window_status(&only_win, 'r');
+                break;
+            default:
+                break;
+            }
+        }
+
+        if (mode == resize_mode) {
+            switch (key)
+                {
+                case KEY_UP:
+                    only_win.height--;
+                    break;
+                case KEY_DOWN:
+                    only_win.height++;
+                    break;
+                case KEY_LEFT:
+                    only_win.width -= 2; // Console font ratio is 2 to 1
+                    break;
+                case KEY_RIGHT:
+                    only_win.width += 2;
+                    break;
+                default:
+                    break;
+                }
+
+            WINDOW *old_win = only_win.window;
+            only_win.window = newwin(only_win.height, only_win.width, only_win.y_pos, only_win.x_pos);
+            replace_panel(only_win.panel, only_win.window);
+            box(only_win.window, 0, 0);
+            delwin(old_win);
+            cwm_window_refresh(&only_win);
+            update_panels();
+            doupdate();
+            
+            if (key == KEY_END) {
+                mode = no_mode;
+                cwm_window_status(&only_win, 0);
+            }
+        }
+
+        if (mode == move_mode) {
+            debug_print("In move mode\n");
+            if (
+                key == KEY_UP
+                || key == KEY_DOWN
+                || key == KEY_LEFT
+                || key == KEY_RIGHT
+            ) {
+
+            debug_print("Moving window from (%i, %i)...\n", only_win.x_pos, only_win.y_pos);
+
+            switch (key)
+                {
+                case KEY_UP:
+                    only_win.y_pos--;
+                    break;
+                case KEY_DOWN:
+                    only_win.y_pos++;
+                    break;
+                case KEY_LEFT:
+                    only_win.x_pos -= 2; // Console font ratio is 2 to 1
+                    break;
+                case KEY_RIGHT:
+                    only_win.x_pos += 2;
+                    break;
+                default:
+                    break;
+                }
+
+                debug_print("...to (%i, %i)\n", only_win.x_pos, only_win.y_pos);
+
+                cwm_window_move(&only_win, only_win.y_pos, only_win.x_pos);
+            }
+
+            if (key == KEY_END) {
+                mode = no_mode;
+                cwm_window_status(&only_win, 0);
+            }
+        }
+        debug_print("\n\n");
+    }
+
+    /*
 
     // ...
     printw("App....");
     refresh();
 
-    //WINDOW *win = newwin(10,100, 3, 3);
-    //box(win, 0, 0);
-    //PANEL *pan = new_panel(win);
-    //update_panels();
-    //doupdate();
-
-    PANEL *pan = cwm_window_create(10, 100, 3, 3);
+    CWM_WINDOW_DATA win_obj = cwm_window_create(10, 100, 3, 3);
 
     getch();
 
-    //WINDOW *win = panel_window(pan);
-    //wmove(win, 1, 1);
-    //wprintw(win, "Hello World");
-    //wrefresh(win);
-
-    cwm_window_print(pan, "Hello World fdjfJDHFADU HUDHUFDSHUF DSUHFD HUHU HUFUD HUHAUFDSHUHUFDHULAHUHUFDUFHUHUADSUHUFDALHUUDHHUFDLLUHAHUL");
+    cwm_window_refresh(&win_obj);
 
     getch();
 
-    move_panel(pan, 3, 12);
-
-    update_panels();
-    doupdate();
+    cwm_window_move(&win_obj, 5, 12);
 
     getch();
+
+    cwm_window_status(&win_obj, '#');
+
+    getch();
+
+    */
 
     endwin();
+
+    debug_shutdown();
 }
 
-PANEL *cwm_window_create(int height, int width, int y, int x) {
+/**
+ * @brief Create a window
+ * 
+ * @param height Height of the window
+ * @param width  Width of the window
+ * @param y Starting x coordinate of the window
+ * @param x Starting y coordinate of the window
+ * @return CWM_WINDOW_DATA
+ */
+CWM_WINDOW_DATA cwm_window_create(int height, int width, int y, int x) {
     WINDOW *win = newwin(height, width, y, x);
     box(win, 0, 0);
     PANEL *pan = new_panel(win);
+    CWM_WINDOW_DATA obj;
+    obj.panel = pan;
+    obj.window = win;
+    obj.x_pos = x;
+    obj.y_pos = y;
+    obj.height = height;
+    obj.width = width;
+    obj.status = 0;
+
     update_panels();
     doupdate();
 
-    return pan;
+    return obj;
 }
 
-void cwm_window_print(PANEL *pan, char text[]) {
-    WINDOW *win = panel_window(pan);
-    wmove(win, 1, 1);
-    wprintw(win, text);
-    wrefresh(win);
+void cwm_window_refresh(CWM_WINDOW_DATA *cwm_win) {
+    wmove(cwm_win->window, 1, 1);
+    wprintw(cwm_win->window, "Test");
+    cwm_window_status(cwm_win, cwm_win->status);
+    wrefresh(cwm_win->window);
+}
+
+void cwm_window_move(CWM_WINDOW_DATA *cwm_win, int y, int x) {
+    move_panel(cwm_win->panel, y, x);
+
+    update_panels();
+    doupdate();
+}
+
+void cwm_window_status(CWM_WINDOW_DATA *cwm_win, int status) {
+    if (status == 0) status = ACS_ULCORNER;
+
+    cwm_win->status = status;
+
+    wborder(cwm_win->window, 0, 0, 0, 0, status, 0, 0, 0);
+
+    wrefresh(cwm_win->window);
 }
