@@ -3,10 +3,7 @@
 
 #include <stdlib.h>
 
-#ifndef DEBUG
-#define DEBUG 0
-#endif
-
+#ifdef DEBUG
 #define debug_setup() FILE *debug_output_file = fopen("debug_pipe", "a"); setlinebuf(debug_output_file)
 
 // This macro acts just like printf
@@ -15,5 +12,14 @@
 #define debug_print(fmt, ...) do { if (DEBUG) fprintf(debug_output_file, "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, ##__VA_ARGS__); } while (0)
 
 #define debug_shutdown() fclose(debug_output_file)
+#else
+#define debug_setup()
+#define debug_print(fmt, ...)
+#define debug_shutdown()
+#endif
+
+#ifndef DEBUG
+#define DEBUG 0
+#endif
 
 #endif
