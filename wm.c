@@ -2,6 +2,7 @@
 #include <panel.h>
 
 #include "lib/headers/debug.h"
+#include "lib/dll.h"
 
 /**
  * @brief Contains all window data.
@@ -35,9 +36,9 @@ int main() {
     keypad(stdscr, TRUE);
     debug_print("Finished setting up ncurses.\n");
 
-    CWM_WINDOW_DATA only_win = cwm_window_create(10, 100, 0, 0);
+    CWM_WINDOW_DATA current_win = cwm_window_create(10, 100, 0, 0);
 
-    cwm_window_refresh(&only_win);
+    cwm_window_refresh(&current_win);
 
     int key;
     #define no_mode 0
@@ -57,15 +58,15 @@ int main() {
             {
             case 'e':
                 mode = edit_mode;
-                cwm_window_status(&only_win, 'e');
+                cwm_window_status(&current_win, 'e');
                 break;
             case 'm':
                 mode = move_mode;
-                cwm_window_status(&only_win, 'm');
+                cwm_window_status(&current_win, 'm');
                 break;
             case 'r':
                 mode = resize_mode;
-                cwm_window_status(&only_win, 'r');
+                cwm_window_status(&current_win, 'r');
                 break;
             default:
                 break;
@@ -76,33 +77,33 @@ int main() {
             switch (key)
                 {
                 case KEY_UP:
-                    only_win.height--;
+                    current_win.height--;
                     break;
                 case KEY_DOWN:
-                    only_win.height++;
+                    current_win.height++;
                     break;
                 case KEY_LEFT:
-                    only_win.width -= 2; // Console font ratio is 2 to 1
+                    current_win.width -= 2; // Console font ratio is 2 to 1
                     break;
                 case KEY_RIGHT:
-                    only_win.width += 2;
+                    current_win.width += 2;
                     break;
                 default:
                     break;
                 }
 
-            WINDOW *old_win = only_win.window;
-            only_win.window = newwin(only_win.height, only_win.width, only_win.y_pos, only_win.x_pos);
-            replace_panel(only_win.panel, only_win.window);
-            box(only_win.window, 0, 0);
+            WINDOW *old_win = current_win.window;
+            current_win.window = newwin(current_win.height, current_win.width, current_win.y_pos, current_win.x_pos);
+            replace_panel(current_win.panel, current_win.window);
+            box(current_win.window, 0, 0);
             delwin(old_win);
-            cwm_window_refresh(&only_win);
+            cwm_window_refresh(&current_win);
             update_panels();
             doupdate();
             
             if (key == KEY_END) {
                 mode = no_mode;
-                cwm_window_status(&only_win, 0);
+                cwm_window_status(&current_win, 0);
             }
         }
 
@@ -115,34 +116,34 @@ int main() {
                 || key == KEY_RIGHT
             ) {
 
-            debug_print("Moving window from (%i, %i)...\n", only_win.x_pos, only_win.y_pos);
+            debug_print("Moving window from (%i, %i)...\n", current_win.x_pos, current_win.y_pos);
 
             switch (key)
                 {
                 case KEY_UP:
-                    only_win.y_pos--;
+                    current_win.y_pos--;
                     break;
                 case KEY_DOWN:
-                    only_win.y_pos++;
+                    current_win.y_pos++;
                     break;
                 case KEY_LEFT:
-                    only_win.x_pos -= 2; // Console font ratio is 2 to 1
+                    current_win.x_pos -= 2; // Console font ratio is 2 to 1
                     break;
                 case KEY_RIGHT:
-                    only_win.x_pos += 2;
+                    current_win.x_pos += 2;
                     break;
                 default:
                     break;
                 }
 
-                debug_print("...to (%i, %i)\n", only_win.x_pos, only_win.y_pos);
+                debug_print("...to (%i, %i)\n", current_win.x_pos, current_win.y_pos);
 
-                cwm_window_move(&only_win, only_win.y_pos, only_win.x_pos);
+                cwm_window_move(&current_win, current_win.y_pos, current_win.x_pos);
             }
 
             if (key == KEY_END) {
                 mode = no_mode;
-                cwm_window_status(&only_win, 0);
+                cwm_window_status(&current_win, 0);
             }
         }
         debug_print("\n\n");
