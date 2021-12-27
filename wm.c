@@ -8,8 +8,6 @@
  * @brief Contains all window data.
  */
 typedef struct {
-    PANEL *panel;
-    WINDOW *window; // panel contains window so not needed?
     char window_buffer[1000];       /**< Primary source for the text the window contains. Wrap around when you reach the end. Size could be hardcoded, or changed on startup with config files. Allocating swap is too much work */
     int window_buffer_position;     /**< Window buffer position to next write to. Also where to start reading from */
     int x_pos;
@@ -19,10 +17,10 @@ typedef struct {
     char status;
 } CWM_WINDOW_DATA;
 
-CWM_WINDOW_DATA cwm_window_create(int height, int width, int y, int x);
-void cwm_window_move(CWM_WINDOW_DATA *cwm_win, int y, int x);
-void cwm_window_refresh(CWM_WINDOW_DATA *cwm_win);
-void cwm_window_status(CWM_WINDOW_DATA *cwm_win, int status);
+PANEL *cwm_window_create(int height, int width, int y, int x);
+void cwm_window_move(PANEL *panel, int y, int x);
+void cwm_window_refresh(PANEL *panel);
+void cwm_window_status(PANEL *panel, int status);
 
 DLL *cwm_windows_new(DLL *current_window, int height, int width, int y, int x);
 
@@ -38,17 +36,17 @@ int main() {
     keypad(stdscr, TRUE);
     debug_print("Finished setting up ncurses.\n");
 
-    CWM_WINDOW_DATA *other_win = malloc(sizeof(CWM_WINDOW_DATA));
-    CWM_WINDOW_DATA *current_win = malloc(sizeof(CWM_WINDOW_DATA));
-    *other_win = cwm_window_create(10, 55, 5, 50);
-    *current_win = cwm_window_create(10, 100, 0, 0);
+    PANEL *other_win = malloc(sizeof(PANEL));
+    PANEL *current_win = malloc(sizeof(PANEL));
+    other_win = cwm_window_create(10, 55, 5, 50);
+    current_win = cwm_window_create(10, 100, 0, 0);
 
     // TODO Refresh makes window top for some reason
     cwm_window_refresh(other_win);
     cwm_window_refresh(current_win);
 
     // Used to swap
-    CWM_WINDOW_DATA *oc;
+    PANEL *oc;
 
     int key;
     #define no_mode 0
@@ -82,8 +80,7 @@ int main() {
                 oc = current_win;
                 current_win = other_win;
                 other_win = oc;
-                top_panel(current_win->panel);
-                debug_print("Status: %c\n", ACS_ULCORNER);
+                top_panel(current_win);
                 cwm_window_refresh(current_win);
                 break;
             default:
@@ -95,25 +92,25 @@ int main() {
             switch (key)
                 {
                 case KEY_UP:
-                    current_win->height--;
+                    ((CWM_WINDOW_DATA *)panel_userptr(current_win))->height--;
                     break;
                 case KEY_DOWN:
-                    current_win->height++;
+                    ((CWM_WINDOW_DATA *)panel_userptr(current_win))->height++;
                     break;
                 case KEY_LEFT:
-                    current_win->width -= 2; // Console font ratio is 2 to 1
+                    ((CWM_WINDOW_DATA *)panel_userptr(current_win))->width -= 2; // Console font ratio is 2 to 1
                     break;
                 case KEY_RIGHT:
-                    current_win->width += 2;
+                    ((CWM_WINDOW_DATA *)panel_userptr(current_win))->width += 2;
                     break;
                 default:
                     break;
                 }
 
-            WINDOW *old_win = current_win->window;
-            current_win->window = newwin(current_win->height, current_win->width, current_win->y_pos, current_win->x_pos);
-            replace_panel(current_win->panel, current_win->window);
-            box(current_win->window, 0, 0);
+            WINDOW *old_win = panel_window(current_win);
+            WINDOW *new_win = newwin(((CWM_WINDOW_DATA *)panel_userptr(current_win))->height, ((CWM_WINDOW_DATA *)panel_userptr(current_win))->width, ((CWM_WINDOW_DATA *)panel_userptr(current_win))->y_pos, ((CWM_WINDOW_DATA *)panel_userptr(current_win))->x_pos);
+            replace_panel(current_win, new_win);
+            box(panel_window(current_win), 0, 0);
             delwin(old_win);
             cwm_window_refresh(current_win);
             update_panels();
@@ -134,29 +131,29 @@ int main() {
                 || key == KEY_RIGHT
             ) {
 
-            debug_print("Moving window from (%i, %i)...\n", current_win->x_pos, current_win->y_pos);
+            debug_print("Moving window from (%i, %i)...\n", ((CWM_WINDOW_DATA *)panel_userptr(current_win))->x_pos, ((CWM_WINDOW_DATA *)panel_userptr(current_win))->y_pos);
 
             switch (key)
                 {
                 case KEY_UP:
-                    current_win->y_pos--;
+                    ((CWM_WINDOW_DATA *)panel_userptr(current_win))->y_pos--;
                     break;
                 case KEY_DOWN:
-                    current_win->y_pos++;
+                    ((CWM_WINDOW_DATA *)panel_userptr(current_win))->y_pos++;
                     break;
                 case KEY_LEFT:
-                    current_win->x_pos -= 2; // Console font ratio is 2 to 1
+                    ((CWM_WINDOW_DATA *)panel_userptr(current_win))->x_pos -= 2; // Console font ratio is 2 to 1
                     break;
                 case KEY_RIGHT:
-                    current_win->x_pos += 2;
+                    ((CWM_WINDOW_DATA *)panel_userptr(current_win))->x_pos += 2;
                     break;
                 default:
                     break;
                 }
 
-                debug_print("...to (%i, %i)\n", current_win->x_pos, current_win->y_pos);
+                debug_print("...to (%i, %i)\n", ((CWM_WINDOW_DATA *)panel_userptr(current_win))->x_pos, ((CWM_WINDOW_DATA *)panel_userptr(current_win))->y_pos);
 
-                cwm_window_move(current_win, current_win->y_pos, current_win->x_pos);
+                cwm_window_move(current_win, ((CWM_WINDOW_DATA *)panel_userptr(current_win))->y_pos, ((CWM_WINDOW_DATA *)panel_userptr(current_win))->x_pos);
             }
 
             if (key == KEY_END) {
@@ -171,8 +168,6 @@ int main() {
 
     debug_shutdown();
 }
-
-#define current_win_data ((CWM_WINDOW_DATA*)(current_window_in_dll->data))
 
 /* int main() {
     debug_setup();
@@ -329,54 +324,45 @@ int main() {
     return dll_append(current_window, new_window);
 } */
 
-/**
- * @brief Create a window
- * 
- * @param height Height of the window
- * @param width  Width of the window
- * @param y Starting x coordinate of the window
- * @param x Starting y coordinate of the window
- * @return CWM_WINDOW_DATA
- */
-CWM_WINDOW_DATA cwm_window_create(int height, int width, int y, int x) {
+PANEL *cwm_window_create(int height, int width, int y, int x) {
     WINDOW *win = newwin(height, width, y, x);
     box(win, 0, 0);
     PANEL *pan = new_panel(win);
-    CWM_WINDOW_DATA obj;
-    obj.panel = pan;
-    obj.window = win;
-    obj.x_pos = x;
-    obj.y_pos = y;
-    obj.height = height;
-    obj.width = width;
-    obj.status = 0;
+    CWM_WINDOW_DATA *obj = malloc(sizeof(CWM_WINDOW_DATA));
+    obj->x_pos = x;
+    obj->y_pos = y;
+    obj->height = height;
+    obj->width = width;
+    obj->status = 0;
+
+    set_panel_userptr(pan, obj);
 
     update_panels();
     doupdate();
 
-    return obj;
+    return pan;
 }
 
-void cwm_window_refresh(CWM_WINDOW_DATA *cwm_win) {
-    wmove(cwm_win->window, 1, 1);
-    wprintw(cwm_win->window, "Test");
-    cwm_window_status(cwm_win, cwm_win->status);
+void cwm_window_refresh(PANEL *panel) {
+    wmove(panel_window(panel), 1, 1);
+    wprintw(panel_window(panel), "Test");
+    cwm_window_status(panel, ((CWM_WINDOW_DATA *)panel_userptr(panel))->status);
     update_panels();
     doupdate();
 //    wrefresh(cwm_win->window);
 }
 
-void cwm_window_move(CWM_WINDOW_DATA *cwm_win, int y, int x) {
-    move_panel(cwm_win->panel, y, x);
+void cwm_window_move(PANEL *panel, int y, int x) {
+    move_panel(panel, y, x);
 
     update_panels();
     doupdate();
 }
 
-void cwm_window_status(CWM_WINDOW_DATA *cwm_win, int status) {
-    cwm_win->status = status;
+void cwm_window_status(PANEL *panel, int status) {
+    ((CWM_WINDOW_DATA *)panel_userptr(panel))->status = status;
 
-    wborder(cwm_win->window, 0, 0, 0, 0, status, 0, 0, 0);
+    wborder(panel_window(panel), 0, 0, 0, 0, status, 0, 0, 0);
 
     update_panels();
     doupdate();
