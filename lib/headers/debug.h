@@ -4,6 +4,8 @@
 #include <stdlib.h>
 
 #ifdef DEBUG
+FILE *debug_output_file;
+
 #define debug_setup() FILE *debug_output_file = fopen("debug_pipe", "a"); setlinebuf(debug_output_file)
 
 // This macro acts just like printf

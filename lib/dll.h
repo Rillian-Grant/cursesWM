@@ -5,7 +5,7 @@
 
 typedef struct DLL DLL;
 struct DLL {
-    int data;
+    void *data;
 
     DLL *next;
     struct DLL *prev;
@@ -14,6 +14,7 @@ struct DLL {
 DLL *dll_seek_tail(DLL *dll);
 DLL *dll_seek_head(DLL *dll);
 
+DLL *dll_init(void *data);
 DLL *dll_append(DLL *dll, void *data);
 DLL *dll_remove(DLL *dll);
 

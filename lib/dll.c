@@ -1,14 +1,28 @@
 #include <stdlib.h>
 
+#include "headers/debug.h"
+
 typedef struct DLL DLL;
 struct DLL {
-    int data;
+    void *data;
 
     DLL *next;
     struct DLL *prev;
 };
 
+DLL *dll_init(void *data) {
+    DLL *node = malloc(sizeof(DLL));
+
+    node->next = NULL;
+    node->prev = NULL;
+
+    node->data = data;
+
+    return node;
+}
+
 DLL *dll_seek_tail(DLL *dll) {
+    debug_print("Seek Tail\n");
     while (dll->next != NULL) {
         dll = dll->next;
     }
@@ -23,6 +37,16 @@ DLL *dll_seek_head(DLL *dll) {
 }
 
 DLL *dll_append(DLL *dll, void *data) {
+    if (dll == NULL) {
+        DLL *node = malloc(sizeof(DLL));
+
+        node->next = NULL;
+        node->prev = NULL;
+
+        node->data = data;
+
+        return node;
+    } else {
     dll = dll_seek_tail(dll);
 
     DLL *new_node = malloc(sizeof(DLL));
@@ -31,6 +55,7 @@ DLL *dll_append(DLL *dll, void *data) {
     new_node->next = NULL;
 
     return new_node;
+    }
 }
 
 DLL *dll_remove(DLL *dll) {
