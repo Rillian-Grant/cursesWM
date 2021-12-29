@@ -6,7 +6,7 @@
 #include "lib/dll.h"
 
 /**
- * @brief Contains all window data.
+ * @brief Contains all window data
  */
 typedef struct {
     char window_buffer[WINDOW_TEXT_BUFFER_SIZE];       /** Primary source for the text the window contains. Wrap around when you reach the end. Size could be hardcoded, or changed on startup with config files. Allocating swap is too much work */
