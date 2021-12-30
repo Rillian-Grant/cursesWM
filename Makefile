@@ -2,5 +2,5 @@
 a.out: wm.o
 	gcc wm.o -lpanel -lncurses
 
-wm.o: wm.c lib/headers/debug.h
+wm.o: wm.c lib/headers/debug.h config.h
 	gcc -D DEBUG -c wm.c
