@@ -4,3 +4,6 @@ a.out: wm.o
 
 wm.o: wm.c lib/headers/debug.h config.h
 	gcc -D DEBUG -c wm.c
+
+docs: wm.c lib/* doxygen.conf
+	doxygen doxygen.conf
