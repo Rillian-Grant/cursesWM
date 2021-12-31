@@ -1,42 +1,51 @@
 #include <ncurses.h>
 #include <panel.h>
+#include <dlfcn.h>
 
 #include "config.h"
 #include "lib/headers/debug.h"
-
-/**
- * @brief Contains all window data
- */
-typedef struct {
-    char window_buffer[WINDOW_TEXT_BUFFER_SIZE];       /** Primary source for the text the window contains. Wrap around when you reach the end. Size could be hardcoded, or changed on startup with config files. Allocating swap is too much work */
-    int window_buffer_start_pos;
-    int window_buffer_end_pos;
-    int x_pos;
-    int y_pos;
-    int height;
-    int width;
-    char status;
-} CWM_WINDOW_DATA;
+#include "lib/headers/ut/uthash.h"
+#include "lib/headers/keycodes.h"
+#include "modules/types.h"
 
 PANEL *cwm_window_create(int height, int width, int y, int x);
 void cwm_window_move(PANEL *panel, int y, int x);
-void cwm_window_refresh(PANEL *panel);
-void cwm_window_status(PANEL *panel, int status);
 
-PANEL *current_win;
+PANEL *current_win;                                 /**< Holds the currently focused window */
 #define cwm_window_data(win) ((CWM_WINDOW_DATA *)panel_userptr(win))
 
 int main() {
     debug_setup();
-    debug_print("Starting...\n");
 
-    // Init
+    // Initialise ncurses
     initscr();
     cbreak();
     noecho();
     curs_set(0);
     keypad(stdscr, TRUE);
     debug_print("Finished setting up ncurses.\n");
+
+
+// ##############################################
+
+    // Load modules
+    void *win_blank = dlopen("/home/rillian/Programming/cursesWM/modules/win_blank.so", RTLD_NOW);
+    if (!win_blank)
+  {
+     debug_print("Cannot load module: %s\n", dlerror ());
+     exit(1);
+  }
+    typedef int(*handle_f)(PANEL *, int);
+    handle_f win_blank_handle;
+    win_blank_handle = dlsym(win_blank, "handle");
+    char *result = dlerror();
+    if (result)
+{
+   debug_print("Cannot find init in module: %s\n", result);
+   exit(1);
+}
+
+// ##############################################
 
     int key;
     #define no_mode 0
@@ -52,148 +61,124 @@ int main() {
         
         debug_print("Key with integer representation %i was pressed. Displayed as %c (n.b. This could be wrong)\n", key, key);
 
-        if (mode == no_mode) {
-            debug_print("In no mode\n");
-            switch (key)
-            {
-            case 'e':
-                mode = edit_mode;
-                cwm_window_status(current_win, 'e');
-                continue;
-                break;
-            case 'm':
-                mode = move_mode;
-                cwm_window_status(current_win, 'm');
-                continue;
-                break;
-            case 'r':
-                mode = resize_mode;
-                cwm_window_status(current_win, 'r');
-                continue;
-                break;
-            case 'n':
-                ;
-                PANEL *new_window = cwm_window_create(10, 55, 7, 55);
-                current_win = new_window;
-                cwm_window_refresh(current_win);
-                continue;
-                break;
-            case 'd':
-                ;
-                PANEL *to_delete = current_win;
-                current_win = panel_below(current_win);
-                free((void *)panel_userptr(to_delete)); // Discard const qualifier from pointer type
-                del_panel(to_delete);
-                update_panels();
-                doupdate();
-                continue;
-                break;
-            case 9:
-                current_win = panel_above((PANEL *)0);
-                top_panel(current_win);
-                cwm_window_refresh(current_win);
-                continue;
-                break;
-            default:
-                break;
-            }
+        int res = win_blank_handle(current_win, key);
+        if (res == RETURN_NEW_WIN) {
+            int height = 10;
+            int width = 55;
+            int x = 7;
+            int y = 55;
+
+            WINDOW *win = newwin(height, width, y, x);
+            box(win, 0, 0);
+            PANEL *pan = new_panel(win);
+            CWM_WINDOW_DATA *obj = malloc(sizeof(CWM_WINDOW_DATA));
+            obj->x_pos = obj->_x_pos = x;
+            obj->y_pos = obj->_y_pos = y;
+            obj->height = height;
+            obj->width = width;
+            obj->status = 0;
+
+            set_panel_userptr(pan, obj);
+
+            current_win = pan;
+
+            win_blank_handle(current_win, key);
         }
+        update_panels();
+        doupdate();
 
-        if (mode == resize_mode) {
-            switch (key)
-                {
-                case KEY_UP:
-                    cwm_window_data(current_win)->height--;
-                    break;
-                case KEY_DOWN:
-                    cwm_window_data(current_win)->height++;
-                    break;
-                case KEY_LEFT:
-                    cwm_window_data(current_win)->width -= 2; // Console font ratio is 2 to 1
-                    break;
-                case KEY_RIGHT:
-                    cwm_window_data(current_win)->width += 2;
-                    break;
-                default:
-                    break;
-                }
+        debug_print("Is current_win null: %i\n", (current_win == NULL));
 
+        // <event_block>
+/*         if (key == ctrl_letter('n')) {
+            PANEL *new_window = cwm_window_create(10, 55, 7, 55);
+            current_win = new_window;
+        }
+        else if (key == ctrl_letter('d')) {
+            ;
+            PANEL *to_delete = current_win;
+            current_win = panel_below(current_win);
+            free((void *)panel_userptr(to_delete)); // Discard const qualifier from pointer type
+            del_panel(to_delete);
+            update_panels();
+            doupdate();
+        }
+        else */ if (key == KEY_TAB) {
+            current_win = panel_above((PANEL *)0);
+            top_panel(current_win);
+        }
+        else if (key == KEY_ALT_UP) {
+            cwm_window_data(current_win)->height--;
+        }
+        else if (key == KEY_ALT_DOWN) {
+            cwm_window_data(current_win)->height++;
+        }
+        else if (key == KEY_ALT_LEFT) {
+            cwm_window_data(current_win)->width -= 2; // Console font ratio is 2 to 1
+        }
+        else if (key == KEY_ALT_RIGHT) {
+            cwm_window_data(current_win)->width += 2;
+        }
+        else if (key == KEY_CTRL_UP) {
+            cwm_window_data(current_win)->y_pos--;
+        }
+        else if (key == KEY_CTRL_DOWN) {
+            cwm_window_data(current_win)->y_pos++;
+        }
+        else if (key == KEY_CTRL_LEFT) {
+            cwm_window_data(current_win)->x_pos -= 2; // Console font ratio is 2 to 1
+        }
+        else if (key == KEY_CTRL_RIGHT) {
+            cwm_window_data(current_win)->x_pos += 2;
+        } 
+        
+        /* else if (key == KEY_BACKSPACE) {
+            debug_print("Backspace\n");
+            cwm_window_data(current_win)->window_buffer[cwm_window_data(current_win)->window_buffer_end_pos - 1] = ' ';
+            cwm_window_data(current_win)->window_buffer_end_pos--;
+        }
+        else {
+            debug_print("Key: %c\n", key);
+            cwm_window_data(current_win)->window_buffer[cwm_window_data(current_win)->window_buffer_end_pos] = key;
+            cwm_window_data(current_win)->window_buffer_end_pos++;
+        } */
+        // </event_block>
+
+        if (current_win == NULL) continue;
+
+        // <resize_final>
+        if (
+            cwm_window_data(current_win)->height != cwm_window_data(current_win)->_height
+            | cwm_window_data(current_win)->width != cwm_window_data(current_win)->_width
+        ) {
             WINDOW *old_win = panel_window(current_win);
             WINDOW *new_win = newwin(cwm_window_data(current_win)->height, cwm_window_data(current_win)->width, cwm_window_data(current_win)->y_pos, cwm_window_data(current_win)->x_pos);
             replace_panel(current_win, new_win);
             box(panel_window(current_win), 0, 0);
             delwin(old_win);
-            cwm_window_refresh(current_win);
             update_panels();
             doupdate();
-            
-            if (key == KEY_END) {
-                mode = no_mode;
-                cwm_window_status(current_win, 0);
-            }
+
+            cwm_window_data(current_win)->_height = cwm_window_data(current_win)->height;
+            cwm_window_data(current_win)->_width = cwm_window_data(current_win)->width;
         }
+        // </resize_final>
 
-        if (mode == move_mode) {
-            debug_print("In move mode\n");
-            if (
-                key == KEY_UP
-                || key == KEY_DOWN
-                || key == KEY_LEFT
-                || key == KEY_RIGHT
-            ) {
+        // <move_final>
+        if (
+            cwm_window_data(current_win)->x_pos != cwm_window_data(current_win)->_x_pos
+            | cwm_window_data(current_win)->y_pos != cwm_window_data(current_win)->_y_pos
+        ) {
+            cwm_window_move(current_win, cwm_window_data(current_win)->y_pos, cwm_window_data(current_win)->x_pos);
 
-            debug_print("Moving window from (%i, %i)...\n", cwm_window_data(current_win)->x_pos, cwm_window_data(current_win)->y_pos);
-
-            switch (key)
-                {
-                case KEY_UP:
-                    cwm_window_data(current_win)->y_pos--;
-                    break;
-                case KEY_DOWN:
-                    cwm_window_data(current_win)->y_pos++;
-                    break;
-                case KEY_LEFT:
-                    cwm_window_data(current_win)->x_pos -= 2; // Console font ratio is 2 to 1
-                    break;
-                case KEY_RIGHT:
-                    cwm_window_data(current_win)->x_pos += 2;
-                    break;
-                default:
-                    break;
-                }
-
-                debug_print("...to (%i, %i)\n", cwm_window_data(current_win)->x_pos, cwm_window_data(current_win)->y_pos);
-
-                cwm_window_move(current_win, cwm_window_data(current_win)->y_pos, cwm_window_data(current_win)->x_pos);
-            }
-
-            if (key == KEY_END) {
-                mode = no_mode;
-                cwm_window_status(current_win, 0);
-            }
+            cwm_window_data(current_win)->_x_pos = cwm_window_data(current_win)->x_pos;
+            cwm_window_data(current_win)->_y_pos = cwm_window_data(current_win)->y_pos;
         }
-        
-        if (mode == edit_mode) {
-            switch (key) {
-                case KEY_BACKSPACE:
-                    debug_print("Backspace\n");
-                    cwm_window_data(current_win)->window_buffer[cwm_window_data(current_win)->window_buffer_end_pos - 1] = ' ';
-                    cwm_window_data(current_win)->window_buffer_end_pos--;
-                    break;
-                case KEY_END:
-                    debug_print("END\n");
-                    mode = no_mode;
-                    cwm_window_status(current_win, 0);
-                    break;
-                default:
-                    debug_print("Key: %c\n", key);
-                    cwm_window_data(current_win)->window_buffer[cwm_window_data(current_win)->window_buffer_end_pos] = key;
-                    cwm_window_data(current_win)->window_buffer_end_pos++;
-                    break;
-            }
-            cwm_window_refresh(current_win);
-        }
-        
+        // </move_final>
+
+        update_panels();
+        doupdate();
+
         debug_print("\n\n");
     }
 
@@ -207,15 +192,11 @@ PANEL *cwm_window_create(int height, int width, int y, int x) {
     box(win, 0, 0);
     PANEL *pan = new_panel(win);
     CWM_WINDOW_DATA *obj = malloc(sizeof(CWM_WINDOW_DATA));
-    obj->x_pos = x;
-    obj->y_pos = y;
+    obj->x_pos = obj->_x_pos = x;
+    obj->y_pos = obj->_y_pos = y;
     obj->height = height;
     obj->width = width;
     obj->status = 0;
-    
-    for (int i = 0; i <= WINDOW_TEXT_BUFFER_SIZE; i++) obj->window_buffer[i] = ' '; // TODO: Do i need
-    obj->window_buffer_start_pos = 0;
-    obj->window_buffer_end_pos = 0;
 
     set_panel_userptr(pan, obj);
 
@@ -225,20 +206,6 @@ PANEL *cwm_window_create(int height, int width, int y, int x) {
     return pan;
 }
 
-void cwm_window_refresh(PANEL *panel) {
-    int pos = ((CWM_WINDOW_DATA *)panel_userptr(panel))->window_buffer_start_pos;
-
-    wmove(panel_window(panel), 1, 1);
-
-    wprintw(panel_window(panel), ((CWM_WINDOW_DATA *)panel_userptr(panel))->window_buffer);
-
-    //debug_print("Current window buffer: %s\n", ((CWM_WINDOW_DATA *)panel_userptr(panel))->window_buffer); // Segfault ...
-
-    cwm_window_status(panel, ((CWM_WINDOW_DATA *)panel_userptr(panel))->status);
-    update_panels();
-    doupdate();
-}
-
 void cwm_window_move(PANEL *panel, int y, int x) {
     move_panel(panel, y, x);
 
@@ -246,6 +213,7 @@ void cwm_window_move(PANEL *panel, int y, int x) {
     doupdate();
 }
 
+// Currently unused
 void cwm_window_status(PANEL *panel, int status) {
     ((CWM_WINDOW_DATA *)panel_userptr(panel))->status = status;
 
