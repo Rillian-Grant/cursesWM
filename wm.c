@@ -1,20 +1,10 @@
 #include <ncurses.h>
 #include <panel.h>
+#include <dlfcn.h>
 
 #include "config.h"
 #include "lib/headers/debug.h"
-#include "lib/headers/keycodes.h"
-
-/**
- * @brief Contains all window data
- */
-typedef struct {
-    int x_pos, _x_pos;
-    int y_pos, _y_pos;
-    int height, _height;
-    int width, _width;
-    char status;
-} CWM_WINDOW_DATA;
+#include "lib/headers/types.h"
 
 PANEL *cwm_window_create(int height, int width, int y, int x);
 void cwm_window_move(PANEL *panel, int y, int x);
@@ -35,15 +25,28 @@ int main() {
     keypad(stdscr, TRUE);
     debug_print("Finished setting up ncurses.\n");
 
+    // Load modules
+    void *win_move = dlopen("/home/rillian/Programming/cursesWM/modules/win_move.so", RTLD_NOW);
+    if (!win_move) {
+        printf("Cannot load module: %s\n", dlerror());
+        exit(1);
+    }
+
+    handler_f handler;
+    handler = dlsym(win_move, "handler");
+
     int key;
     while (1) {
-        debug_print("Mode %i\n", mode);
         debug_print("Waiting for input...\n");
 
         key = getch();
         
         debug_print("Key with integer representation %i was pressed. Displayed as %c (n.b. This could be wrong)\n", key, key);
 
+        // Run modules
+        debug_print("Running module...\n");
+        int ret = handler(MODULE_EVENT_KEY_PRESS, &key, NULL, cwm_window_data(current_win));
+        debug_print("Module done returning %i\n", ret);
 
         if (key == ctrl_letter('n')) {
             PANEL *new_window = cwm_window_create(10, 55, 7, 55);
@@ -71,12 +74,6 @@ int main() {
         else if ( key == KEY_ALT_DOWN) cwm_window_data(current_win)->height++;
         else if ( key == KEY_ALT_LEFT) cwm_window_data(current_win)->width -= 2; // Console font ratio is 2 to 1
         else if ( key == KEY_ALT_RIGHT) cwm_window_data(current_win)->width += 2;
-
-        // Move
-        else if ( key == KEY_CTRL_UP) cwm_window_data(current_win)->y_pos--;
-        else if ( key == KEY_CTRL_DOWN) cwm_window_data(current_win)->y_pos++;
-        else if ( key == KEY_CTRL_LEFT) cwm_window_data(current_win)->x_pos -= 2; // Console font ratio is 2 to 1
-        else if ( key == KEY_CTRL_RIGHT) cwm_window_data(current_win)->x_pos += 2;
 
         //<resize_do>
         if (

@@ -1,7 +1,7 @@
 #ifndef FILE_DEBUG_INCLUDED
 #define FILE_DEBUG_INCLUDED
 
-#include <stdlib.h>
+#include <stdio.h>
 
 #ifdef DEBUG
 FILE *debug_output_file;
