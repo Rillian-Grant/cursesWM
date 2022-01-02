@@ -12,17 +12,17 @@
 #include <limits.h>
 #include <sys/types.h>
 
-typedef struct Module_list Module_list;
-typedef struct Module_list {
+typedef struct Module_list_item Module_list_item;
+typedef struct Module_list_item {
     Module *module;
-    Module_list *next;
-    Module_list *prev;
-} Module_list;
+    Module_list_item *next;
+    Module_list_item *prev;
+} Module_list_item;
 
 PANEL *cwm_window_create(int height, int width, int y, int x);
 void cwm_window_move(PANEL *panel, int y, int x);
 void cwm_window_status(PANEL *panel, int status);
-Module_list *load_modules();
+Module_list_item *load_modules();
 Module *load_module(char *filepath);
 
 PANEL *current_win;
@@ -41,7 +41,7 @@ int main() {
     debug_print("Finished setting up ncurses.\n");
 
     // Load modules
-    Module_list *modules = load_modules();
+    Module_list_item *modules = load_modules();
 
     // ##############
 
@@ -148,7 +148,7 @@ void cwm_window_status(PANEL *panel, int status) {
     doupdate();
 }
 
-Module_list *load_modules() {
+Module_list_item *load_modules() {
     DIR *module_dir = opendir("./modules");
 
     struct dirent *current_file;
@@ -157,18 +157,20 @@ Module_list *load_modules() {
 
     char filepath[PATH_MAX + 1];
 
-    Module_list *module_list_head = NULL;
+    Module_list_item *module_list_head = NULL;
 
     while ((current_file = readdir(module_dir)) != NULL) {
         extension = strrchr(current_file->d_name, '.');
         if(extension && extension != current_file->d_name && !strcmp(extension, ".so")) {
             realpath(current_file->d_name, filepath);
             debug_print("%s\n", filepath);
-            Module_list *module_to_add = malloc(sizeof(Module_list));
-            module_to_add->module = load_module(filepath);
-            DL_APPEND(module_list_head, module_to_add);
+            Module_list_item *new_module_list_item = malloc(sizeof(Module_list_item));
+            new_module_list_item->module = load_module(filepath);
+            module_list_head = new_module_list_item;
         }
     }
+
+    return module_list_head;
 }
 
 Module *load_module(char *filepath) {
@@ -187,8 +189,6 @@ Module *load_module(char *filepath) {
         debug_print("FATAL: Could not load module at: %s. Error: %s\n", filepath, error);
         exit(1);
     }
-
-    info->handler = dlsym(module, "handler");
 
     return info;
 }

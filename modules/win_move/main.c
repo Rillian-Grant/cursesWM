@@ -8,7 +8,7 @@ extern Module info = {
     .name="Window Move",
     .description="",
     .global=true,
-    .handler=handler,
+    .handler = handler,
 };
 
 int handler(int event, void *event_data, void **global_module_data, CWM_WINDOW_DATA *window_data) {
