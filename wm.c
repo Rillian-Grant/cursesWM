@@ -1,14 +1,29 @@
 #include <ncurses.h>
 #include <panel.h>
 #include <dlfcn.h>
+#include <dirent.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "config.h"
 #include "lib/headers/debug.h"
 #include "lib/headers/types.h"
+#include "lib/headers/utlist.h"
+#include <limits.h>
+#include <sys/types.h>
+
+typedef struct Module_list Module_list;
+typedef struct Module_list {
+    Module *module;
+    Module_list *next;
+    Module_list *prev;
+} Module_list;
 
 PANEL *cwm_window_create(int height, int width, int y, int x);
 void cwm_window_move(PANEL *panel, int y, int x);
 void cwm_window_status(PANEL *panel, int status);
+Module_list *load_modules();
+Module *load_module(char *filepath);
 
 PANEL *current_win;
 #define cwm_window_data(win) ((CWM_WINDOW_DATA *)panel_userptr(win))
@@ -26,14 +41,9 @@ int main() {
     debug_print("Finished setting up ncurses.\n");
 
     // Load modules
-    void *win_move = dlopen("/home/rillian/Programming/cursesWM/modules/win_move.so", RTLD_NOW);
-    if (!win_move) {
-        printf("Cannot load module: %s\n", dlerror());
-        exit(1);
-    }
+    Module_list *modules = load_modules();
 
-    handler_f handler;
-    handler = dlsym(win_move, "handler");
+    // ##############
 
     int key;
     while (1) {
@@ -45,7 +55,7 @@ int main() {
 
         // Run modules
         debug_print("Running module...\n");
-        int ret = handler(MODULE_EVENT_KEY_PRESS, &key, NULL, cwm_window_data(current_win));
+        int ret = modules->module->handler(MODULE_EVENT_KEY_PRESS, &key, NULL, cwm_window_data(current_win));
         debug_print("Module done returning %i\n", ret);
 
         if (key == ctrl_letter('n')) {
@@ -136,4 +146,49 @@ void cwm_window_status(PANEL *panel, int status) {
 
     update_panels();
     doupdate();
+}
+
+Module_list *load_modules() {
+    DIR *module_dir = opendir("./modules");
+
+    struct dirent *current_file;
+
+    char *extension;
+
+    char filepath[PATH_MAX + 1];
+
+    Module_list *module_list_head = NULL;
+
+    while ((current_file = readdir(module_dir)) != NULL) {
+        extension = strrchr(current_file->d_name, '.');
+        if(extension && extension != current_file->d_name && !strcmp(extension, ".so")) {
+            realpath(current_file->d_name, filepath);
+            debug_print("%s\n", filepath);
+            Module_list *module_to_add = malloc(sizeof(Module_list));
+            module_to_add->module = load_module(filepath);
+            DL_APPEND(module_list_head, module_to_add);
+        }
+    }
+}
+
+Module *load_module(char *filepath) {
+    char *error;
+
+    void *module = dlopen("/home/rillian/Programming/cursesWM/modules/win_move.so", RTLD_NOW);
+    if (!module) {
+        debug_print("FATAL: Cannot load module: %s\n", dlerror());
+        exit(1);
+    }
+
+    Module *info;
+    info = dlsym(module, "info");
+    error = dlerror();
+    if (error) {
+        debug_print("FATAL: Could not load module at: %s. Error: %s\n", filepath, error);
+        exit(1);
+    }
+
+    info->handler = dlsym(module, "handler");
+
+    return info;
 }

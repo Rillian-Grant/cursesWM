@@ -1,14 +1,20 @@
+#include <stdbool.h>
+
 #include "../types.h"
 
-#include "../../lib/headers/debug.h"
+int handler(int event, void *event_data, void **global_module_data, CWM_WINDOW_DATA *window_data);
 
-extern int global = 1;
+extern Module info = {
+    .name="Window Move",
+    .description="",
+    .global=true,
+    .handler=handler,
+};
 
 int handler(int event, void *event_data, void **global_module_data, CWM_WINDOW_DATA *window_data) {
     if (event != MODULE_EVENT_KEY_PRESS) return MODULE_RETURN_NOP;
     
     int key = *(int *)event_data;
-    debug_print("Module\n");
 
     if ( key == KEY_CTRL_UP) window_data->y_pos--;
     else if ( key == KEY_CTRL_DOWN) window_data->y_pos++;

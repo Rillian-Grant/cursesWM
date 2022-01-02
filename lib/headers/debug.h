@@ -6,7 +6,7 @@
 #ifdef DEBUG
 FILE *debug_output_file;
 
-#define debug_setup() FILE *debug_output_file = fopen("debug_pipe", "a"); setlinebuf(debug_output_file)
+#define debug_setup() debug_output_file = fopen("debug_pipe", "a"); setlinebuf(debug_output_file)
 
 // This macro acts just like printf
 // Pinched from: https://stackoverflow.com/questions/1644868/define-macro-for-debug-printing-in-c

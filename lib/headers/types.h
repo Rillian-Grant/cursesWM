@@ -4,7 +4,7 @@
 /**
  * @brief Contains all window data
  */
-typedef struct {
+typedef struct CWM_WINDOW_DATA {
     int x_pos, _x_pos;
     int y_pos, _y_pos;
     int height, _height;
@@ -33,6 +33,13 @@ typedef struct {
 
 // ### Module ###
 typedef int (*handler_f)(int event, void *event_data, void **global_module_data, CWM_WINDOW_DATA *window_data);
+
+typedef struct Module {
+    char *name;
+    char *description;
+    bool global;
+    handler_f handler;
+} Module;
 
 // Event
 #define MODULE_EVENT_START          0
