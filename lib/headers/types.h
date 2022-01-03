@@ -9,7 +9,7 @@ typedef struct CWM_WINDOW_DATA {
     int y_pos, _y_pos;
     int height, _height;
     int width, _width;
-    char status;
+    char status, _status;
 } CWM_WINDOW_DATA;
 
 // ### KEYCODES ###

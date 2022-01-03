@@ -42,6 +42,10 @@ int main() {
 
     // Load modules
     Module_list_item *modules = load_modules();
+    Module_list_item *el;
+    int count;
+    DL_COUNT(modules, el, count);
+    debug_print("Num of modules: %i\n", count);
 
     // ##############
 
@@ -54,9 +58,15 @@ int main() {
         debug_print("Key with integer representation %i was pressed. Displayed as %c (n.b. This could be wrong)\n", key, key);
 
         // Run modules
-        debug_print("Running module...\n");
-        int ret = modules->module->handler(MODULE_EVENT_KEY_PRESS, &key, NULL, cwm_window_data(current_win));
-        debug_print("Module done returning %i\n", ret);
+        Module_list_item *m;
+        if (current_win != NULL) debug_print("Height before: %i\n", cwm_window_data(current_win)->height);
+        DL_FOREACH(modules, m) {
+            debug_print("Running module %s\n", m->module->name);
+            int ret = m->module->handler(MODULE_EVENT_KEY_PRESS, &key, NULL, cwm_window_data(current_win));
+            debug_print("Module done returning %i\n", ret);
+        }
+        if (current_win != NULL) debug_print("Height after: %i\n", cwm_window_data(current_win)->height);
+
 
         if (key == ctrl_letter('n')) {
             PANEL *new_window = cwm_window_create(10, 55, 7, 55);
@@ -79,11 +89,7 @@ int main() {
 
         if (current_win == NULL) continue;
 
-        // Resize
-        else if ( key == KEY_ALT_UP) cwm_window_data(current_win)->height--;
-        else if ( key == KEY_ALT_DOWN) cwm_window_data(current_win)->height++;
-        else if ( key == KEY_ALT_LEFT) cwm_window_data(current_win)->width -= 2; // Console font ratio is 2 to 1
-        else if ( key == KEY_ALT_RIGHT) cwm_window_data(current_win)->width += 2;
+
 
         //<resize_do>
         if (
@@ -118,11 +124,11 @@ PANEL *cwm_window_create(int height, int width, int y, int x) {
     box(win, 0, 0);
     PANEL *pan = new_panel(win);
     CWM_WINDOW_DATA *obj = malloc(sizeof(CWM_WINDOW_DATA));
-    obj->x_pos = x;
-    obj->y_pos = y;
-    obj->height = height;
-    obj->width = width;
-    obj->status = 0;
+    obj->x_pos = obj->_x_pos = x;
+    obj->y_pos = obj->_y_pos = y;
+    obj->height = obj->_height = height;
+    obj->width = obj->_width = width;
+    obj->status = obj->_status = 0;
 
     set_panel_userptr(pan, obj);
 
@@ -149,24 +155,29 @@ void cwm_window_status(PANEL *panel, int status) {
 }
 
 Module_list_item *load_modules() {
-    DIR *module_dir = opendir("./modules");
+    #define MODULE_DIR "./modules" // Must not end with a trailing slash. TODO Fix
+    DIR *module_dir = opendir(MODULE_DIR);
 
     struct dirent *current_file;
 
     char *extension;
 
     char filepath[PATH_MAX + 1];
+    char filepath_real[PATH_MAX + 1];
 
     Module_list_item *module_list_head = NULL;
 
     while ((current_file = readdir(module_dir)) != NULL) {
         extension = strrchr(current_file->d_name, '.');
         if(extension && extension != current_file->d_name && !strcmp(extension, ".so")) {
-            realpath(current_file->d_name, filepath);
-            debug_print("%s\n", filepath);
+            sprintf(filepath, "%s/%s", MODULE_DIR, current_file->d_name);
+            debug_print("Combined path: %s\n", filepath);
+            realpath(filepath, filepath_real);
+            debug_print("Real path: %s\n", filepath_real);
             Module_list_item *new_module_list_item = malloc(sizeof(Module_list_item));
-            new_module_list_item->module = load_module(filepath);
-            module_list_head = new_module_list_item;
+            new_module_list_item->module = load_module(filepath_real);
+            debug_print("Loading module: %s\n", new_module_list_item->module->name);
+            DL_APPEND(module_list_head, new_module_list_item);
         }
     }
 
@@ -176,18 +187,18 @@ Module_list_item *load_modules() {
 Module *load_module(char *filepath) {
     char *error;
 
-    void *module = dlopen("/home/rillian/Programming/cursesWM/modules/win_move.so", RTLD_NOW);
+    void *module = dlopen(filepath, RTLD_NOW);
     if (!module) {
         debug_print("FATAL: Cannot load module: %s\n", dlerror());
-        exit(1);
+        endwin(); exit(1);
     }
 
     Module *info;
-    info = dlsym(module, "info");
+    info = dlsym(module, "module");
     error = dlerror();
     if (error) {
         debug_print("FATAL: Could not load module at: %s. Error: %s\n", filepath, error);
-        exit(1);
+        endwin(); exit(1);
     }
 
     return info;
