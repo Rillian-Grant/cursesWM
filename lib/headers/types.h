@@ -1,6 +1,10 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+typedef struct Module Module;
+typedef struct CWM_WINDOW_DATA CWM_WINDOW_DATA;
+typedef int (*handler_f)(int event, void *event_data, void **global_module_data, CWM_WINDOW_DATA *window_data);
+
 /**
  * @brief Contains all window data
  */
@@ -10,6 +14,7 @@ typedef struct CWM_WINDOW_DATA {
     int height, _height;
     int width, _width;
     char status, _status;
+    Module *associated_module;
 } CWM_WINDOW_DATA;
 
 // ### KEYCODES ###
@@ -43,9 +48,12 @@ typedef struct Module {
 
 // Event
 #define MODULE_EVENT_START          0
-#define MODULE_EVENT_KEY_PRESS      1
-#define MODULE_EVENT_WIN_MINIMIZED  2
-#define MODULE_EVENT_WIN_RESTORED   3
+#define MODULE_EVENT_STOP           1
+#define MODULE_EVENT_KEY_PRESS      2
+#define MODULE_EVENT_WIN_CREATED    3
+#define MODULE_EVENT_WIN_MINIMIZED  4
+#define MODULE_EVENT_WIN_RESTORED   5
+#define MODULE_EVENT_WIN_RECREATED  6
 
 // Return
 #define MODULE_RETURN_NOP           0

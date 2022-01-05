@@ -15,12 +15,12 @@
 typedef struct Module_list_item Module_list_item;
 typedef struct Module_list_item {
     Module *module;
+    void **data;
     Module_list_item *next;
     Module_list_item *prev;
 } Module_list_item;
 
 PANEL *cwm_window_create(int height, int width, int y, int x);
-void cwm_window_move(PANEL *panel, int y, int x);
 void cwm_window_status(PANEL *panel, int status);
 Module_list_item *load_modules();
 Module *load_module(char *filepath);
@@ -59,36 +59,51 @@ int main() {
 
         // Run modules
         Module_list_item *m;
-        if (current_win != NULL) debug_print("Height before: %i\n", cwm_window_data(current_win)->height);
+        bool done_something = false;
         DL_FOREACH(modules, m) {
-            debug_print("Running module %s\n", m->module->name);
-            int ret = m->module->handler(MODULE_EVENT_KEY_PRESS, &key, NULL, cwm_window_data(current_win));
-            debug_print("Module done returning %i\n", ret);
+            bool module_finished = false; // Is set to true when a module returns something that is not command
+            int event = MODULE_EVENT_KEY_PRESS;
+            while (!module_finished) {
+                debug_print("Running module %s with event %i\n", m->module->name, event);
+                int ret = m->module->handler(event, &key, m->data, cwm_window_data(current_win));
+                debug_print("Module done returning %i\n", ret);
+
+                if (ret == MODULE_RETURN_DONE) {
+                    done_something = true;
+                    module_finished = true;
+                }
+                else if (ret == MODULE_RETURN_NOP) {
+                    module_finished = true;
+                }
+                else if (ret == MODULE_RETURN_WIN_NEW) {
+                    current_win = cwm_window_create(10, 55, 7, 55);
+                    cwm_window_data(current_win)->associated_module = m->module;
+                    done_something = true;
+                    event = MODULE_EVENT_WIN_CREATED;
+                }
+                else if (ret == MODULE_RETURN_WIN_DEL) {
+                    PANEL *to_delete = current_win;
+                    current_win = panel_below(current_win);
+                    free((void *)panel_userptr(to_delete));
+                    del_panel(to_delete);
+                    done_something = true;
+                    module_finished = true;
+                }
+            }
+            
         }
-        if (current_win != NULL) debug_print("Height after: %i\n", cwm_window_data(current_win)->height);
 
 
-        if (key == ctrl_letter('n')) {
-            PANEL *new_window = cwm_window_create(10, 55, 7, 55);
-            current_win = new_window;
-            update_panels();
-            doupdate();
-        } else if ( key == ctrl_letter('d')) {
-            PANEL *to_delete = current_win;
-            current_win = panel_below(current_win);
-            free((void *)panel_userptr(to_delete)); // Discard const qualifier from pointer type
-            del_panel(to_delete);
-            update_panels();
-            doupdate();
-        } else if ( key == KEY_TAB) {
+        if ( key == KEY_TAB) {
             current_win = panel_above((PANEL *)0);
             top_panel(current_win);
             update_panels();
             doupdate();
         }
 
-        if (current_win == NULL) continue;
-
+debug_print("Before check\n");
+        if (current_win == NULL || done_something == false) continue;
+debug_print("After check\n");
 
 
         //<resize_do>
@@ -110,8 +125,11 @@ int main() {
             cwm_window_data(current_win)->x_pos != cwm_window_data(current_win)->_x_pos
             | cwm_window_data(current_win)->y_pos != cwm_window_data(current_win)->_y_pos
         ) {
-            cwm_window_move(current_win, cwm_window_data(current_win)->y_pos, cwm_window_data(current_win)->x_pos);
+            move_panel(current_win, cwm_window_data(current_win)->y_pos, cwm_window_data(current_win)->x_pos);
         }
+
+        update_panels();
+        doupdate();
     }
 
     endwin();
@@ -136,13 +154,6 @@ PANEL *cwm_window_create(int height, int width, int y, int x) {
     doupdate();
 
     return pan;
-}
-
-void cwm_window_move(PANEL *panel, int y, int x) {
-    move_panel(panel, y, x);
-
-    update_panels();
-    doupdate();
 }
 
 void cwm_window_status(PANEL *panel, int status) {

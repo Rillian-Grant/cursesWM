@@ -7,6 +7,8 @@ Each module consists of a function called `handler` with the following definitio
 - `int event` Contains the reason that this modules handler was called. It can be:
   - `KEY_PRESS`
   - `START` Generic launch command
+  - `STOP` Generic stop
+  - `WIN_CREATED`
   - `WIN_RECREATED` Happens when the window is resized
   - `WIN_MINIMIZED` Not implemented
   - `WIN_RESTORED` Not implemented
