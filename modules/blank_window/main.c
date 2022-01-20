@@ -31,10 +31,14 @@ int handler(int event, void *event_data, void **global_module_data, CWM_WINDOW_D
     if (event == MODULE_EVENT_STOP || (event == MODULE_EVENT_KEY_PRESS && *(int *)event_data == ctrl_letter('d'))) return MODULE_RETURN_WIN_DEL;
 
     if (event == MODULE_EVENT_WIN_CREATED) {
-        int ret = mvwprintw(window_data->associated_ncurses_window, 1, 1, "Blank window %i", (*(global_data_s **)global_module_data)->counter);
+        int c = (*(global_data_s **)global_module_data)->counter;
+        int ret = mvwprintw(window_data->associated_ncurses_window, 1, 1, "Blank window %i", c);
         
         *(window_data->module_data) = malloc(sizeof(window_data_s));
-        (*(window_data_s **)window_data->module_data)->number = (*(global_data_s **)global_module_data)->counter;
+        (*(window_data_s **)window_data->module_data)->number = c;
+
+        window_data->x_pos += 2*c;
+        window_data->y_pos += c;
 
         (*(global_data_s **)global_module_data)->counter++;
 
