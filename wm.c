@@ -15,7 +15,7 @@
 typedef struct Module_list_item Module_list_item;
 typedef struct Module_list_item {
     Module *module;
-    void **data;
+    void *data;
     Module_list_item *next;
     Module_list_item *prev;
 } Module_list_item;
@@ -65,6 +65,8 @@ int main() {
             int event = MODULE_EVENT_KEY_PRESS;
             while (!module_finished) {
                 debug_print("Running module %s with event %i\n", m->module->name, event);
+/*                 if (current_win != NULL) wprintw(cwm_window_data(current_win)->associated_ncurses_window, "Hello");
+                update_panels(); doupdate(); */
                 int ret = m->module->handler(event, &key, m->data, cwm_window_data(current_win));
                 debug_print("Module done returning %i\n", ret);
 
@@ -116,6 +118,7 @@ debug_print("After check\n");
             replace_panel(current_win, new_win);
             box(panel_window(current_win), 0, 0);
             delwin(old_win);
+            cwm_window_data(current_win)->associated_ncurses_window = new_win;
             update_panels();
             doupdate();
         }
@@ -147,6 +150,7 @@ PANEL *cwm_window_create(int height, int width, int y, int x) {
     obj->height = obj->_height = height;
     obj->width = obj->_width = width;
     obj->status = obj->_status = 0;
+    obj->associated_ncurses_window = win;
 
     set_panel_userptr(pan, obj);
 

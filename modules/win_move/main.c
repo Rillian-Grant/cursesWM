@@ -2,7 +2,7 @@
 
 #include "../types.h"
 
-int handler(int event, void *event_data, void **global_module_data, CWM_WINDOW_DATA *window_data);
+int handler(int event, void *event_data, void *global_module_data, CWM_WINDOW_DATA *window_data);
 
 extern Module module = {
     .name="Window Move",
@@ -11,7 +11,7 @@ extern Module module = {
     .handler = handler,
 };
 
-int handler(int event, void *event_data, void **global_module_data, CWM_WINDOW_DATA *window_data) {
+int handler(int event, void *event_data, void *global_module_data, CWM_WINDOW_DATA *window_data) {
     if (event != MODULE_EVENT_KEY_PRESS) return MODULE_RETURN_NOP;
     
     int key = *(int *)event_data;

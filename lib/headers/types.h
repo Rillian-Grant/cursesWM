@@ -3,7 +3,7 @@
 
 typedef struct Module Module;
 typedef struct CWM_WINDOW_DATA CWM_WINDOW_DATA;
-typedef int (*handler_f)(int event, void *event_data, void **global_module_data, CWM_WINDOW_DATA *window_data);
+typedef int (*handler_f)(int event, void *event_data, void *global_module_data, CWM_WINDOW_DATA *window_data);
 
 /**
  * @brief Contains all window data
@@ -15,6 +15,7 @@ typedef struct CWM_WINDOW_DATA {
     int width, _width;
     char status, _status;
     Module *associated_module;
+    void *associated_ncurses_window;
 } CWM_WINDOW_DATA;
 
 // ### KEYCODES ###
@@ -37,7 +38,6 @@ typedef struct CWM_WINDOW_DATA {
 #endif // TYPES_H
 
 // ### Module ###
-typedef int (*handler_f)(int event, void *event_data, void **global_module_data, CWM_WINDOW_DATA *window_data);
 
 typedef struct Module {
     char *name;

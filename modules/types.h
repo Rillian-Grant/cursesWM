@@ -1,1 +1,1 @@
-/home/rillian/WSLProgramming/cursesWM/lib/headers/types.h
+../lib/headers/types.h
