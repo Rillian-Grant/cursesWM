@@ -10,8 +10,8 @@ docs: wm.c lib/* doxygen.conf
 
 
 blank_window_module: modules/types.h modules/blank_window/main.c
-	gcc --shared -o modules/blank_window.so modules/blank_window/main.c -g
+	gcc -D DEBUG -fPIC --shared -o modules/blank_window.so modules/blank_window/main.c -g
 win_move_module: modules/types.h modules/win_move/main.c
-	gcc --shared -o modules/win_move.so modules/win_move/main.c -g
+	gcc -D DEBUG -fPIC --shared -o modules/win_move.so modules/win_move/main.c -g
 win_resize_module: modules/types.h modules/win_resize/main.c
-	gcc --shared -o modules/win_resize.so modules/win_resize/main.c -g
+	gcc -D DEBUG -fPIC --shared -o modules/win_resize.so modules/win_resize/main.c -g
