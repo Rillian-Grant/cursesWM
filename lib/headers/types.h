@@ -27,6 +27,7 @@ typedef struct CWM_WINDOW_DATA {
     int width, _width;
     char status, _status; ///< The current status character that appears at the top left corner of the window.
     Module *associated_module; ///< The module that created this window.
+    void **module_data; ///< Custom module data associated with this window.
     void *associated_ncurses_window; ///< The ncurses window. It is a void pointer so that the modules that don't need to use it don't have to include ncures.h.
 } CWM_WINDOW_DATA;
 

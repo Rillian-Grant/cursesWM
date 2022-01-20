@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "utlist.h": "c",
+        "assert.h": "c",
+        "dlfcn.h": "c",
+        "debug.h": "c",
+        "types.h": "c",
+        "limits.h": "c"
+    }
+}

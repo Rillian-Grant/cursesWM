@@ -44,6 +44,7 @@ Module *load_module(char *filepath);
 
 // Holds a pointer to the current window. The panel library handles getting other windows.
 PANEL *current_win;
+Module_list_item *modules; // Head of the list of modules.
 // Shorthand for getting the window's associated CWM_WINDOW_DATA object.
 #define cwm_window_data(win) ((CWM_WINDOW_DATA *)panel_userptr(win))
 
@@ -60,7 +61,7 @@ int main() {
     debug_print("Finished setting up ncurses.\n");
 
     // Load modules
-    Module_list_item *modules = load_modules();
+    modules = load_modules();
     // DL_COUNT requires several variables that it can modify to function.
     Module_list_item *el;
     int count;
@@ -78,43 +79,8 @@ int main() {
         
         debug_print("Key with integer representation %i was pressed. Displayed as %c (n.b. This could be wrong)\n", key, key);
 
-        // Run modules
-        Module_list_item *m;
-        bool module_effected_state = false;
-        DL_FOREACH(modules, m) {
-            bool module_finished = false; // Is set to true when a module returns something that is not command
-            int event = MODULE_EVENT_KEY_PRESS;
-            while (!module_finished) {
-                debug_print("Running module %s with event %i\n", m->module->name, event);
-/*                 if (current_win != NULL) wprintw(cwm_window_data(current_win)->associated_ncurses_window, "Hello");
-                update_panels(); doupdate(); */
-                int ret = m->module->handler(event, &key, m->data, cwm_window_data(current_win));
-                debug_print("Module done returning %i\n", ret);
-
-                if (ret == MODULE_RETURN_DONE) {
-                    module_effected_state = true;
-                    module_finished = true;
-                }
-                else if (ret == MODULE_RETURN_NOP) {
-                    module_finished = true;
-                }
-                else if (ret == MODULE_RETURN_WIN_NEW) {
-                    current_win = cwm_window_create(10, 55, 7, 55);
-                    cwm_window_data(current_win)->associated_module = m->module;
-                    module_effected_state = true;
-                    event = MODULE_EVENT_WIN_CREATED;
-                }
-                else if (ret == MODULE_RETURN_WIN_DEL) {
-                    PANEL *to_delete = current_win;
-                    current_win = panel_below(current_win);
-                    free((void *)panel_userptr(to_delete));
-                    del_panel(to_delete);
-                    module_effected_state = true;
-                    module_finished = true;
-                }
-            }
-            
-        }
+        // Run module event handlers
+        bool module_effected_state = handle_event(MODULE_EVENT_KEY_PRESS, &key);
 
         // Switch between windows
         if ( key == KEY_TAB) {
@@ -138,6 +104,9 @@ int main() {
             box(panel_window(current_win), 0, 0);
             delwin(old_win);
             cwm_window_data(current_win)->associated_ncurses_window = new_win;
+
+            handle_event(MODULE_EVENT_WIN_RECREATED, NULL);
+
             update_panels();
             doupdate();
         }
@@ -160,6 +129,53 @@ int main() {
     endwin();
 
     debug_shutdown();
+}
+
+/**
+ * @brief 
+ * 
+ * @param event The event to be handled.
+ * @return int 0 If no window state was changed, 1 if it was.
+ */
+int handle_event(int event, void *event_data) {
+    Module_list_item *m;
+    bool module_effected_state = false;
+    DL_FOREACH(modules, m) {
+        bool module_finished = false; // Is set to true when a module returns something that is not command
+        while (!module_finished) {
+            debug_print("Running module %s with event %i\n", m->module->name, event);
+            int ret = m->module->handler(event, event_data, m->data, cwm_window_data(current_win));
+            debug_print("Module done returning %i\n", ret);
+
+            if (ret == MODULE_RETURN_DONE) {
+                module_effected_state = true;
+                module_finished = true;
+            }
+            else if (ret == MODULE_RETURN_NOP) {
+                module_finished = true;
+            }
+            else if (ret == MODULE_RETURN_WIN_NEW) {
+                current_win = cwm_window_create(10, 55, 7, 55);
+                cwm_window_data(current_win)->associated_module = m->module;
+                cwm_window_data(current_win)->module_data = malloc(sizeof(void *));
+
+                module_effected_state = true;
+                event = MODULE_EVENT_WIN_CREATED;
+            }
+            else if (ret == MODULE_RETURN_WIN_DEL) {
+                PANEL *to_delete = current_win;
+                current_win = panel_below(current_win);
+                free((void *)panel_userptr(to_delete));
+                del_panel(to_delete);
+                module_effected_state = true;
+                module_finished = true;
+            }
+        }
+        
+    }
+
+    if (module_effected_state) return 1;
+    else return 0;
 }
 
 /**
