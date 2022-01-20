@@ -1,3 +1,14 @@
+/**
+ * @file types.h
+ * @author Rillian Grant (rillian.grant@gmail.com)
+ * @brief Type definitions shared between the core and modules.
+ * @version 0.1
+ * @date 2022-01-20
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
+
 #ifndef TYPES_H
 #define TYPES_H
 
@@ -6,16 +17,17 @@ typedef struct CWM_WINDOW_DATA CWM_WINDOW_DATA;
 typedef int (*handler_f)(int event, void *event_data, void **global_module_data, CWM_WINDOW_DATA *window_data);
 
 /**
- * @brief Contains all window data
+ * @brief Contains all window data.
+ * Values preceeded by an underscore are not to be modified by modules.
  */
 typedef struct CWM_WINDOW_DATA {
     int x_pos, _x_pos;
     int y_pos, _y_pos;
     int height, _height;
     int width, _width;
-    char status, _status;
-    Module *associated_module;
-    void *associated_ncurses_window;
+    char status, _status; ///< The current status character that appears at the top left corner of the window.
+    Module *associated_module; ///< The module that created this window.
+    void *associated_ncurses_window; ///< The ncurses window. It is a void pointer so that the modules that don't need to use it don't have to include ncures.h.
 } CWM_WINDOW_DATA;
 
 // ### KEYCODES ###
@@ -39,11 +51,15 @@ typedef struct CWM_WINDOW_DATA {
 
 // ### Module ###
 
+/**
+ * @brief Module information and functions.
+ * 
+ */
 typedef struct Module {
-    char *name;
-    char *description;
-    bool global;
-    handler_f handler;
+    char *name;         ///< The short name of the module.
+    char *description;  ///< The full description of the module.
+    bool global;        ///< If true this module is run for all events, not only those effecting it's window(s).
+    handler_f handler;  ///< Function pointer to the event handler for the module.
 } Module;
 
 // Event

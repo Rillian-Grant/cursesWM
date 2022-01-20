@@ -1,3 +1,14 @@
+/**
+ * @file wm.c
+ * @author Rillian Grant (rillian.grant@gmail.com)
+ * @brief Main file for the window manager
+ * @version 0.1
+ * @date 2022-01-20
+ * 
+ * @copyright Copyright (c) 2022
+ * 
+ */
+
 #include <ncurses.h>
 #include <panel.h>
 #include <dlfcn.h>
@@ -13,26 +24,34 @@
 #include <sys/types.h>
 
 typedef struct Module_list_item Module_list_item;
+
+/**
+ * @brief Doubly linked list node structure that contains a module and that module's custom data.
+ * 
+ */
 typedef struct Module_list_item {
-    Module *module;
-    void **data;
+    Module *module;                 ///< The module. This is declared in types.h and defined in the module in question.
+    void **data;                    ///< A pointer to the modules's custom pointer.
     Module_list_item *next;
     Module_list_item *prev;
 } Module_list_item;
 
+// Function declarations
 PANEL *cwm_window_create(int height, int width, int y, int x);
 void cwm_window_status(PANEL *panel, int status);
 Module_list_item *load_modules();
 Module *load_module(char *filepath);
 
+// Holds a pointer to the current window. The panel library handles getting other windows.
 PANEL *current_win;
+// Shorthand for getting the window's associated CWM_WINDOW_DATA object.
 #define cwm_window_data(win) ((CWM_WINDOW_DATA *)panel_userptr(win))
 
 int main() {
     debug_setup();
-    debug_print("Starting...\n");
+    debug_print("Started\n");
 
-    // Init
+    // Initalise ncurses
     initscr();
     cbreak();
     noecho();
@@ -42,12 +61,14 @@ int main() {
 
     // Load modules
     Module_list_item *modules = load_modules();
+    // DL_COUNT requires several variables that it can modify to function.
     Module_list_item *el;
     int count;
     DL_COUNT(modules, el, count);
-    debug_print("Num of modules: %i\n", count);
+    debug_print("Num of modules loaded: %i\n", count);
 
-    // ##############
+
+    // Main loop
 
     int key;
     while (1) {
@@ -59,7 +80,7 @@ int main() {
 
         // Run modules
         Module_list_item *m;
-        bool done_something = false;
+        bool module_effected_state = false;
         DL_FOREACH(modules, m) {
             bool module_finished = false; // Is set to true when a module returns something that is not command
             int event = MODULE_EVENT_KEY_PRESS;
@@ -71,7 +92,7 @@ int main() {
                 debug_print("Module done returning %i\n", ret);
 
                 if (ret == MODULE_RETURN_DONE) {
-                    done_something = true;
+                    module_effected_state = true;
                     module_finished = true;
                 }
                 else if (ret == MODULE_RETURN_NOP) {
@@ -80,7 +101,7 @@ int main() {
                 else if (ret == MODULE_RETURN_WIN_NEW) {
                     current_win = cwm_window_create(10, 55, 7, 55);
                     cwm_window_data(current_win)->associated_module = m->module;
-                    done_something = true;
+                    module_effected_state = true;
                     event = MODULE_EVENT_WIN_CREATED;
                 }
                 else if (ret == MODULE_RETURN_WIN_DEL) {
@@ -88,14 +109,14 @@ int main() {
                     current_win = panel_below(current_win);
                     free((void *)panel_userptr(to_delete));
                     del_panel(to_delete);
-                    done_something = true;
+                    module_effected_state = true;
                     module_finished = true;
                 }
             }
             
         }
 
-
+        // Switch between windows
         if ( key == KEY_TAB) {
             current_win = panel_above((PANEL *)0);
             top_panel(current_win);
@@ -103,16 +124,14 @@ int main() {
             doupdate();
         }
 
-debug_print("Before check\n");
-        if (current_win == NULL || done_something == false) continue;
-debug_print("After check\n");
-
+        if (current_win == NULL || module_effected_state == false) continue;
 
         //<resize_do>
         if (
             cwm_window_data(current_win)->height != cwm_window_data(current_win)->_height
             | cwm_window_data(current_win)->width != cwm_window_data(current_win)->_width
         ) {
+            // Resizing the windows is done by creating a new window and switching them out
             WINDOW *old_win = panel_window(current_win);
             WINDOW *new_win = newwin(cwm_window_data(current_win)->height, cwm_window_data(current_win)->width, cwm_window_data(current_win)->y_pos, cwm_window_data(current_win)->x_pos);
             replace_panel(current_win, new_win);
@@ -133,6 +152,7 @@ debug_print("After check\n");
         }
         //</move_do>
 
+        // Updates what's on screen. This should only be run here
         update_panels();
         doupdate();
     }
@@ -142,6 +162,15 @@ debug_print("After check\n");
     debug_shutdown();
 }
 
+/**
+ * @brief Creates a new window and initializes the associated data structures in the userptr.
+ * 
+ * @param height    Height of the new window.
+ * @param width     Width of the new window.
+ * @param y         Y coord of the top left corner of the window. This to counting from the top of the screen.
+ * @param x         X coord of the top left corner of the window.
+ * @return          PANEL* Pointer to the newly created window
+ */
 PANEL *cwm_window_create(int height, int width, int y, int x) {
     WINDOW *win = newwin(height, width, y, x);
     box(win, 0, 0);
@@ -156,21 +185,27 @@ PANEL *cwm_window_create(int height, int width, int y, int x) {
 
     set_panel_userptr(pan, obj);
 
-    update_panels();
-    doupdate();
-
     return pan;
 }
 
+/**
+ * @brief Currently unused function.
+ * 
+ * @param panel 
+ * @param status 
+ */
 void cwm_window_status(PANEL *panel, int status) {
     ((CWM_WINDOW_DATA *)panel_userptr(panel))->status = status;
 
     wborder(panel_window(panel), 0, 0, 0, 0, status, 0, 0, 0);
-
-    update_panels();
-    doupdate();
 }
 
+/**
+ * @brief Loads modules from a folder in the current directory named modules.
+ * @todo Make more resilient.
+ * 
+ * @return Module_list_item* The head of the double linked list of modules.
+ */
 Module_list_item *load_modules() {
     #define MODULE_DIR "./modules" // Must not end with a trailing slash. TODO Fix
     DIR *module_dir = opendir(MODULE_DIR);
@@ -184,18 +219,23 @@ Module_list_item *load_modules() {
 
     Module_list_item *module_list_head = NULL;
 
+    // Loop through files in the module directory
     while ((current_file = readdir(module_dir)) != NULL) {
-        extension = strrchr(current_file->d_name, '.');
+        extension = strrchr(current_file->d_name, '.'); // Returns a pointer to the '.' in the filename
+        // If the file has an extension and is not a hidden file and the extension is '.so'
         if(extension && extension != current_file->d_name && !strcmp(extension, ".so")) {
-            sprintf(filepath, "%s/%s", MODULE_DIR, current_file->d_name);
+            sprintf(filepath, "%s/%s", MODULE_DIR, current_file->d_name); // sets filepath to MODULE_DIR/filename
             debug_print("Combined path: %s\n", filepath);
-            realpath(filepath, filepath_real);
+            realpath(filepath, filepath_real); // Gets the fill path of the module
             debug_print("Real path: %s\n", filepath_real);
+            
+            // Load the module and initialise the custom data pointer
             Module_list_item *new_module_list_item = malloc(sizeof(Module_list_item));
             new_module_list_item->module = load_module(filepath_real);
             new_module_list_item->data = malloc(sizeof(void *));
             *new_module_list_item->data = NULL;
-            debug_print("Loading module: %s\n", new_module_list_item->module->name);
+
+            debug_print("Loaded module: %s\n", new_module_list_item->module->name);
             DL_APPEND(module_list_head, new_module_list_item);
         }
     }
@@ -203,6 +243,12 @@ Module_list_item *load_modules() {
     return module_list_head;
 }
 
+/**
+ * @brief Loads a single module
+ * 
+ * @param filepath Path to the module file
+ * @return Module* Module loaded object
+ */
 Module *load_module(char *filepath) {
     char *error;
 
