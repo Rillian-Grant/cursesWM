@@ -1,5 +1,5 @@
 # TODO Move debug options to `make debug` or similar
-a.out: wm.o
+a.out: wm.o blank_window_module win_move_module win_resize_module
 	gcc wm.o -lpanel -lncurses -ldl -g
 
 wm.o: wm.c lib/headers/debug.h config.h
@@ -7,3 +7,11 @@ wm.o: wm.c lib/headers/debug.h config.h
 
 docs: wm.c lib/* doxygen.conf
 	doxygen doxygen.conf
+
+
+blank_window_module: modules/types.h modules/blank_window/main.c
+	gcc --shared -o modules/blank_window.so modules/blank_window/main.c
+win_move_module: modules/types.h modules/win_move/main.c
+	gcc --shared -o modules/win_move.so modules/win_move/main.c
+win_resize_module: modules/types.h modules/win_resize/main.c
+	gcc --shared -o modules/win_resize.so modules/win_resize/main.c
