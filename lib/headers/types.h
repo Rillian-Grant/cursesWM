@@ -3,7 +3,7 @@
 
 typedef struct Module Module;
 typedef struct CWM_WINDOW_DATA CWM_WINDOW_DATA;
-typedef int (*handler_f)(int event, void *event_data, void *global_module_data, CWM_WINDOW_DATA *window_data);
+typedef int (*handler_f)(int event, void *event_data, void **global_module_data, CWM_WINDOW_DATA *window_data);
 
 /**
  * @brief Contains all window data

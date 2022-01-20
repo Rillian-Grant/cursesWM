@@ -9,13 +9,13 @@
 #include "lib/headers/debug.h"
 #include "lib/headers/types.h"
 #include "lib/headers/utlist.h"
-#include <limits.h>
+#include <linux/limits.h>
 #include <sys/types.h>
 
 typedef struct Module_list_item Module_list_item;
 typedef struct Module_list_item {
     Module *module;
-    void *data;
+    void **data;
     Module_list_item *next;
     Module_list_item *prev;
 } Module_list_item;
@@ -124,12 +124,14 @@ debug_print("After check\n");
         }
         //</resize_do>
 
+        //<move_do>
         if (
             cwm_window_data(current_win)->x_pos != cwm_window_data(current_win)->_x_pos
             | cwm_window_data(current_win)->y_pos != cwm_window_data(current_win)->_y_pos
         ) {
             move_panel(current_win, cwm_window_data(current_win)->y_pos, cwm_window_data(current_win)->x_pos);
         }
+        //</move_do>
 
         update_panels();
         doupdate();
@@ -191,6 +193,8 @@ Module_list_item *load_modules() {
             debug_print("Real path: %s\n", filepath_real);
             Module_list_item *new_module_list_item = malloc(sizeof(Module_list_item));
             new_module_list_item->module = load_module(filepath_real);
+            new_module_list_item->data = malloc(sizeof(void *));
+            *new_module_list_item->data = NULL;
             debug_print("Loading module: %s\n", new_module_list_item->module->name);
             DL_APPEND(module_list_head, new_module_list_item);
         }
