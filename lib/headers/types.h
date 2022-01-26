@@ -12,6 +12,12 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#include "uthash.h"
+
+// General
+typedef char std_short_string[256];
+
+// Window
 typedef struct Module Module;
 typedef struct CWM_WINDOW_DATA CWM_WINDOW_DATA;
 typedef int (*handler_f)(int event, void *event_data, void **global_module_data, CWM_WINDOW_DATA *window_data);
@@ -28,7 +34,7 @@ typedef struct CWM_WINDOW_DATA {
     char status, _status; ///< The current status character that appears at the top left corner of the window.
     Module *associated_module; ///< The module that created this window.
     void **module_data; ///< Custom module data associated with this window.
-    void *associated_ncurses_window; ///< The ncurses window. It is a void pointer so that the modules that don't need to use it don't have to include ncures.h.
+    void *associated_ncurses_window; ///< The ncurses window. It is a void pointer so that the modules that don't need to use it don't have to include ncurses.h.
 } CWM_WINDOW_DATA;
 
 // ### KEYCODES ###
@@ -48,7 +54,6 @@ typedef struct CWM_WINDOW_DATA {
 #define KEY_ALT_LEFT    543
 #define KEY_ALT_RIGHT   558
 
-#endif // TYPES_H
 
 // ### Module ###
 
@@ -77,3 +82,24 @@ typedef struct Module {
 #define MODULE_RETURN_DONE          1
 #define MODULE_RETURN_WIN_NEW       2
 #define MODULE_RETURN_WIN_DEL       3
+
+// Styleing
+#define ATTR_BLOCK(attr, block) \
+    attron(attr); \
+    block \
+    attroff(attr);
+
+// Menu
+#define MODULE_MENU_EVENT_OFFSET 0b1000000000000000
+typedef struct MenuItem MenuItem;
+typedef struct MenuItem {
+    std_short_string name;
+    int event;
+    MenuItem *submenu;
+
+    int y_position, x_start_position, x_end_position;
+
+    UT_hash_handle hh;
+} MenuItem;
+
+#endif // TYPES_H

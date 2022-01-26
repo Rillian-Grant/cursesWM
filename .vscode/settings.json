@@ -1,0 +1,17 @@
+{
+    "files.associations": {
+        "ncurses.h": "c",
+        "debug.h": "c",
+        "uthash.h": "c"
+    },
+    "todo-tree.general.tags": [
+        "BUG",
+        "HACK",
+        "FIXME",
+        "TODO",
+        "XXX",
+        "[ ]",
+        "[x]",
+        "LATER"
+    ]
+}

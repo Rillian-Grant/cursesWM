@@ -23,6 +23,8 @@
 #include <linux/limits.h>
 #include <sys/types.h>
 
+#include "lib/menu/menu.h"
+
 typedef struct Module_list_item Module_list_item;
 
 /**
@@ -57,8 +59,15 @@ int main() {
     cbreak();
     noecho();
     curs_set(0);
+    start_color();
     keypad(stdscr, TRUE);
     debug_print("Finished setting up ncurses.\n");
+
+    // Menu
+    cwm_menu_init();
+    if (menu == NULL) debug_print("Menu is not initialized\n");
+    cwm_menu_refresh(NULL, NULL);
+    if (menu == NULL) debug_print("Menu is not initialized\n");
 
     // Load modules
     modules = load_modules();
@@ -78,6 +87,11 @@ int main() {
         key = getch();
         
         debug_print("Key with integer representation %i was pressed. Displayed as %c (n.b. This could be wrong)\n", key, key);
+
+        if (key == 262) { // Home key
+            cwm_menu_mode();
+            continue;
+        }
 
         // Run module event handlers
         bool module_effected_state = handle_event(MODULE_EVENT_KEY_PRESS, &key);
