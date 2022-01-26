@@ -65,9 +65,7 @@ int main() {
 
     // Menu
     cwm_menu_init();
-    if (menu == NULL) debug_print("Menu is not initialized\n");
-    cwm_menu_refresh(NULL, NULL);
-    if (menu == NULL) debug_print("Menu is not initialized\n");
+    cwm_menu_refresh();
 
     // Load modules
     modules = load_modules();
@@ -88,9 +86,11 @@ int main() {
         
         debug_print("Key with integer representation %i was pressed. Displayed as %c (n.b. This could be wrong)\n", key, key);
 
-        if (key == 262) { // Home key
+        if (key == KEY_HOME) { // Home key
             cwm_menu_mode();
-            continue;
+            touchwin(panel_window(current_win)); // Force panel update. Because panel library doesn't know about the menu.
+            update_panels();
+            doupdate();
         }
 
         // Run module event handlers
@@ -120,9 +120,6 @@ int main() {
             cwm_window_data(current_win)->associated_ncurses_window = new_win;
 
             handle_event(MODULE_EVENT_WIN_RECREATED, NULL);
-
-            update_panels();
-            doupdate();
         }
         //</resize_do>
 
