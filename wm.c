@@ -43,6 +43,7 @@ PANEL *cwm_window_create(int height, int width, int y, int x);
 void cwm_window_status(PANEL *panel, int status);
 Module_list_item *load_modules();
 Module *load_module(char *filepath);
+int handle_event(int event, void *event_data);
 
 // Holds a pointer to the current window. The panel library handles getting other windows.
 PANEL *current_win;
@@ -63,10 +64,6 @@ int main() {
     keypad(stdscr, TRUE);
     debug_print("Finished setting up ncurses.\n");
 
-    // Menu
-    cwm_menu_init();
-    cwm_menu_refresh();
-
     // Load modules
     modules = load_modules();
     // DL_COUNT requires several variables that it can modify to function.
@@ -80,6 +77,10 @@ int main() {
 
     int key;
     while (1) {
+        MenuItem *m;
+        if (current_win != NULL) m = cwm_window_data(current_win)->menu; // TODO
+        else m = NULL;
+        cwm_menu_refresh(m); // TODO
         debug_print("Waiting for input...\n");
 
         key = getch();
@@ -87,10 +88,16 @@ int main() {
         debug_print("Key with integer representation %i was pressed. Displayed as %c (n.b. This could be wrong)\n", key, key);
 
         if (key == KEY_HOME) { // Home key
-            cwm_menu_mode();
+            int menu_event = cwm_menu_mode(m); // TODO
             touchwin(panel_window(current_win)); // Force panel update. Because panel library doesn't know about the menu.
+            
+            if (menu_event != 0) {
+                handle_event(menu_event, NULL);
+            }
+
             update_panels();
             doupdate();
+            continue;
         }
 
         // Run module event handlers
@@ -98,8 +105,13 @@ int main() {
 
         // Switch between windows
         if ( key == KEY_TAB) {
+            // TODO Change window header to show top
+
             current_win = panel_above((PANEL *)0);
             top_panel(current_win);
+
+            
+
             update_panels();
             doupdate();
         }
@@ -143,7 +155,7 @@ int main() {
 }
 
 /**
- * @brief 
+ * @brief Handles an event by calling the associated modules and reacting appropriately to their outputs.
  * 
  * @param event The event to be handled.
  * @return int 0 If no window state was changed, 1 if it was.
@@ -209,6 +221,7 @@ PANEL *cwm_window_create(int height, int width, int y, int x) {
     obj->width = obj->_width = width;
     obj->status = obj->_status = 0;
     obj->associated_ncurses_window = win;
+    obj->menu = NULL;
 
     set_panel_userptr(pan, obj);
 

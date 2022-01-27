@@ -12,7 +12,10 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-#include "uthash.h"
+#include "utlist.h"
+
+// Top
+typedef struct MenuItem MenuItem;
 
 // General
 typedef char std_short_string[256];
@@ -32,9 +35,12 @@ typedef struct CWM_WINDOW_DATA {
     int height, _height;
     int width, _width;
     char status, _status; ///< The current status character that appears at the top left corner of the window.
+
     Module *associated_module; ///< The module that created this window.
     void **module_data; ///< Custom module data associated with this window.
     void *associated_ncurses_window; ///< The ncurses window. It is a void pointer so that the modules that don't need to use it don't have to include ncurses.h.
+
+    MenuItem *menu;
 } CWM_WINDOW_DATA;
 
 // ### KEYCODES ###
@@ -90,8 +96,7 @@ typedef struct Module {
     attroff(attr);
 
 // Menu
-#define MODULE_MENU_EVENT_OFFSET 0b1000000000000000
-typedef struct MenuItem MenuItem;
+#define MODULE_MENU_EVENT_OFFSET 0b100000000000000
 typedef struct MenuItem {
     std_short_string name;
     int event;
@@ -99,7 +104,8 @@ typedef struct MenuItem {
 
     int y_position, x_start_position, x_end_position;
 
-    UT_hash_handle hh;
+    MenuItem *prev;
+    MenuItem *next;
 } MenuItem;
 
 #endif // TYPES_H
