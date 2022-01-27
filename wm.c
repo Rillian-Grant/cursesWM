@@ -62,6 +62,7 @@ int main() {
     curs_set(0);
     start_color();
     keypad(stdscr, TRUE);
+    mousemask(BUTTON1_PRESSED, NULL);
     debug_print("Finished setting up ncurses.\n");
 
     // Load modules
@@ -87,6 +88,12 @@ int main() {
         
         debug_print("Key with integer representation %i was pressed. Displayed as %c (n.b. This could be wrong)\n", key, key);
 
+        if (key == KEY_MOUSE) { // TODO This is a test. Expand later.
+            MEVENT event;
+            getmouse(&event); // OK?
+            debug_print("Mouse event recorded. Button 1 pressed: %i. Coords (%i, %i, %i)\n", (event.bstate & BUTTON1_PRESSED), event.x, event.y, event.z);
+        }
+
         if (key == KEY_HOME) { // Home key
             int menu_event = cwm_menu_mode(m); // TODO
             touchwin(panel_window(current_win)); // Force panel update. Because panel library doesn't know about the menu.
@@ -110,7 +117,7 @@ int main() {
             current_win = panel_above((PANEL *)0);
             top_panel(current_win);
 
-            
+
 
             update_panels();
             doupdate();
