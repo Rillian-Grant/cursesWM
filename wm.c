@@ -44,6 +44,7 @@ void cwm_window_status(PANEL *panel, int status);
 Module_list_item *load_modules();
 Module *load_module(char *filepath);
 int handle_event(int event, void *event_data);
+int cwm_window_move(PANEL *panel, int y, int x);
 
 // Holds a pointer to the current window. The panel library handles getting other windows.
 PANEL *current_win;
@@ -88,11 +89,13 @@ int main() {
         
         debug_print("Key with integer representation %i was pressed. Displayed as %c (n.b. This could be wrong)\n", key, key);
 
+        #ifdef DEBUG
         if (key == KEY_MOUSE) { // TODO This is a test. Expand later.
             MEVENT event;
             getmouse(&event); // OK?
             debug_print("Mouse event recorded. Button 1 pressed: %i. Coords (%i, %i, %i)\n", (event.bstate & BUTTON1_PRESSED), event.x, event.y, event.z);
         }
+        #endif
 
         if (key == KEY_HOME) { // Home key
             int menu_event = cwm_menu_mode(m); // TODO
@@ -126,19 +129,33 @@ int main() {
         if (current_win == NULL || module_effected_state == false) continue;
 
         //<resize_do>
+        // WARNING recreating windows with resize allows moving outside of screen and causes undefined behaviour
         if (
             cwm_window_data(current_win)->height != cwm_window_data(current_win)->_height
             | cwm_window_data(current_win)->width != cwm_window_data(current_win)->_width
         ) {
-            // Resizing the windows is done by creating a new window and switching them out
-            WINDOW *old_win = panel_window(current_win);
-            WINDOW *new_win = newwin(cwm_window_data(current_win)->height, cwm_window_data(current_win)->width, cwm_window_data(current_win)->y_pos, cwm_window_data(current_win)->x_pos);
-            replace_panel(current_win, new_win);
-            box(panel_window(current_win), 0, 0);
-            delwin(old_win);
-            cwm_window_data(current_win)->associated_ncurses_window = new_win;
+            if (
+                    cwm_window_data(current_win)->height > CONFIG_WINDOW_HEIGHT_MINIMUM                 // Height minimum
+                &   cwm_window_data(current_win)->width > CONFIG_WINDOW_WIDTH_MINIMUM                   // Width minimum
+                &   cwm_window_data(current_win)->width + cwm_window_data(current_win)->x_pos < COLS    // Width on screen
+                &   cwm_window_data(current_win)->height + cwm_window_data(current_win)->y_pos < LINES  // Height on screen
+            ) {
+                // Resizing the windows is done by creating a new window and switching them out
+                WINDOW *old_win = panel_window(current_win);
+                WINDOW *new_win = newwin(cwm_window_data(current_win)->height, cwm_window_data(current_win)->width, cwm_window_data(current_win)->y_pos, cwm_window_data(current_win)->x_pos);
+                replace_panel(current_win, new_win);
+                box(panel_window(current_win), 0, 0);
+                delwin(old_win);
+                cwm_window_data(current_win)->associated_ncurses_window = new_win;
 
-            handle_event(MODULE_EVENT_WIN_RECREATED, NULL);
+                cwm_window_data(current_win)->_height = cwm_window_data(current_win)->height;
+                cwm_window_data(current_win)->_width = cwm_window_data(current_win)->width;
+
+                handle_event(MODULE_EVENT_WIN_RECREATED, NULL);
+            } else {
+                cwm_window_data(current_win)->height = cwm_window_data(current_win)->_height;
+                cwm_window_data(current_win)->width = cwm_window_data(current_win)->_width;
+            }
         }
         //</resize_do>
 
@@ -147,7 +164,20 @@ int main() {
             cwm_window_data(current_win)->x_pos != cwm_window_data(current_win)->_x_pos
             | cwm_window_data(current_win)->y_pos != cwm_window_data(current_win)->_y_pos
         ) {
-            move_panel(current_win, cwm_window_data(current_win)->y_pos, cwm_window_data(current_win)->x_pos);
+            if (
+                    cwm_window_data(current_win)->y_pos > 0 // Disallow top row as that contains the menu bar
+                &   cwm_window_data(current_win)->x_pos >= 0
+                &   cwm_window_data(current_win)->y_pos + cwm_window_data(current_win)->height <= LINES
+                &   cwm_window_data(current_win)->x_pos + cwm_window_data(current_win)->width <= COLS
+            ) {
+                cwm_window_move(current_win, cwm_window_data(current_win)->y_pos, cwm_window_data(current_win)->x_pos);
+
+                cwm_window_data(current_win)->_x_pos = cwm_window_data(current_win)->x_pos;
+                cwm_window_data(current_win)->_y_pos = cwm_window_data(current_win)->y_pos;
+            } else {
+                cwm_window_data(current_win)->x_pos = cwm_window_data(current_win)->_x_pos;
+                cwm_window_data(current_win)->y_pos = cwm_window_data(current_win)->_y_pos;
+            }
         }
         //</move_do>
 
@@ -206,6 +236,10 @@ int handle_event(int event, void *event_data) {
 
     if (module_effected_state) return 1;
     else return 0;
+}
+
+int cwm_window_move(PANEL *panel, int y, int x) {
+    return move_panel(panel, y, x);
 }
 
 /**
