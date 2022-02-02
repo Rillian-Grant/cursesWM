@@ -11,3 +11,5 @@ Ncurses window manager
 * Mouse support
 * Maximize and close buttons
 * Indication of current window
+* Clean up memory leaks
+* Menu width overflow
